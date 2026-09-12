@@ -1,14 +1,14 @@
 // Generated from the hexadecimal expansion of pi (Blowfish specification).
 // 1042 32-bit words = 18 P-array entries + 4 x 256 S-box entries.
 
-enum BlowfishTables {
-    static let p: [UInt32] = [
+public enum BlowfishTables {
+    public static let p: [UInt32] = [
         0x243F6A88, 0x85A308D3, 0x13198A2E, 0x03707344, 0xA4093822, 0x299F31D0,
         0x082EFA98, 0xEC4E6C89, 0x452821E6, 0x38D01377, 0xBE5466CF, 0x34E90C6C,
         0xC0AC29B7, 0xC97C50DD, 0x3F84D5B5, 0xB5470917, 0x9216D5D9, 0x8979FB1B,
     ]
 
-    static let s0: [UInt32] = [
+    public static let s0: [UInt32] = [
         0xD1310BA6, 0x98DFB5AC, 0x2FFD72DB, 0xD01ADFB7, 0xB8E1AFED, 0x6A267E96,
         0xBA7C9045, 0xF12C7F99, 0x24A19947, 0xB3916CF7, 0x0801F2E2, 0x858EFC16,
         0x636920D8, 0x71574E69, 0xA458FEA3, 0xF4933D7E, 0x0D95748F, 0x728EB658,
@@ -54,7 +54,7 @@ enum BlowfishTables {
         0x53B02D5D, 0xA99F8FA1, 0x08BA4799, 0x6E85076A,
     ]
 
-    static let s1: [UInt32] = [
+    public static let s1: [UInt32] = [
         0x4B7A70E9, 0xB5B32944, 0xDB75092E, 0xC4192623, 0xAD6EA6B0, 0x49A7DF7D,
         0x9CEE60B8, 0x8FEDB266, 0xECAA8C71, 0x699A17FF, 0x5664526C, 0xC2B19EE1,
         0x193602A5, 0x75094C29, 0xA0591340, 0xE4183A3E, 0x3F54989A, 0x5B429D65,
@@ -100,7 +100,7 @@ enum BlowfishTables {
         0x153E21E7, 0x8FB03D4A, 0xE6E39F2B, 0xDB83ADF7,
     ]
 
-    static let s2: [UInt32] = [
+    public static let s2: [UInt32] = [
         0xE93D5A68, 0x948140F7, 0xF64C261C, 0x94692934, 0x411520F7, 0x7602D4F7,
         0xBCF46B2E, 0xD4A20068, 0xD4082471, 0x3320F46A, 0x43B7D4B7, 0x500061AF,
         0x1E39F62E, 0x97244546, 0x14214F74, 0xBF8B8840, 0x4D95FC1D, 0x96B591AF,
@@ -146,7 +146,7 @@ enum BlowfishTables {
         0xD79A3234, 0x92638212, 0x670EFA8E, 0x406000E0,
     ]
 
-    static let s3: [UInt32] = [
+    public static let s3: [UInt32] = [
         0x3A39CE37, 0xD3FAF5CF, 0xABC27737, 0x5AC52D1B, 0x5CB0679E, 0x4FA33742,
         0xD3822740, 0x99BC9BBE, 0xD5118E9D, 0xBF0F7315, 0xD62D1C7E, 0xC700C47B,
         0xB78C1B6B, 0x21A19045, 0xB26EB1BE, 0x6A366EB4, 0x5748AB2F, 0xBC946E79,

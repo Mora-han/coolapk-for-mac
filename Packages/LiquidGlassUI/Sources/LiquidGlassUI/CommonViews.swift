@@ -3,13 +3,20 @@ import SwiftUI
 
 // MARK: - 小部件
 
-struct CountLabel: View {
-    let systemImage: String
-    let count: Int
-    var active = false
-    var activeColor: Color = Palette.brand
+public struct CountLabel: View {
+    public init(systemImage: String, count: Int, active: Bool = false, activeColor: Color = Palette.brand) {
+        self.systemImage = systemImage
+        self.count = count
+        self.active = active
+        self.activeColor = activeColor
+    }
 
-    var body: some View {
+    public let systemImage: String
+    public let count: Int
+    public var active = false
+    public var activeColor: Color = Palette.brand
+
+    public var body: some View {
         HStack(spacing: 5) {
             Image(systemName: systemImage)
                 .font(.system(size: 12.5, weight: .medium))
@@ -21,13 +28,20 @@ struct CountLabel: View {
     }
 }
 
-struct TagChip: View {
-    let text: String
-    var systemImage: String?
-    var tint: Color = Palette.brand
-    var action: (() -> Void)?
+public struct TagChip: View {
+    public init(text: String, systemImage: String? = nil, tint: Color = Palette.brand, action: (() -> Void)? = nil) {
+        self.text = text
+        self.systemImage = systemImage
+        self.tint = tint
+        self.action = action
+    }
 
-    var body: some View {
+    public let text: String
+    public var systemImage: String?
+    public var tint: Color = Palette.brand
+    public var action: (() -> Void)?
+
+    public var body: some View {
         Button {
             action?()
         } label: {
@@ -48,12 +62,18 @@ struct TagChip: View {
 }
 
 /// 玻璃质感的信息徽标，用于作者、置顶、设备等元信息。
-struct GlassTag: View {
-    let text: String
-    var systemImage: String?
-    var tint: Color?
+public struct GlassTag: View {
+    public init(text: String, systemImage: String? = nil, tint: Color? = nil) {
+        self.text = text
+        self.systemImage = systemImage
+        self.tint = tint
+    }
 
-    var body: some View {
+    public let text: String
+    public var systemImage: String?
+    public var tint: Color?
+
+    public var body: some View {
         HStack(spacing: 4) {
             if let systemImage {
                 Image(systemName: systemImage).font(.system(size: 9.5, weight: .semibold))
@@ -69,14 +89,22 @@ struct GlassTag: View {
 
 // MARK: - 状态视图
 
-struct EmptyStateView: View {
-    var title: String
-    var message: String?
-    var systemImage = "tray"
-    var actionTitle: String?
-    var action: (() -> Void)?
+public struct EmptyStateView: View {
+    public init(title: String, message: String? = nil, systemImage: String = "tray", actionTitle: String? = nil, action: (() -> Void)? = nil) {
+        self.title = title
+        self.message = message
+        self.systemImage = systemImage
+        self.actionTitle = actionTitle
+        self.action = action
+    }
 
-    var body: some View {
+    public var title: String
+    public var message: String?
+    public var systemImage = "tray"
+    public var actionTitle: String?
+    public var action: (() -> Void)?
+
+    public var body: some View {
         VStack(spacing: 12) {
             Image(systemName: systemImage)
                 .font(.system(size: 32, weight: .light))
@@ -101,10 +129,14 @@ struct EmptyStateView: View {
     }
 }
 
-struct LoadingRow: View {
-    var text = "正在加载…"
+public struct LoadingRow: View {
+    public var text = "正在加载…"
 
-    var body: some View {
+    public init(text: String = "正在加载…") {
+        self.text = text
+    }
+
+    public var body: some View {
         HStack(spacing: 8) {
             ProgressView().controlSize(.small)
             Text(text).font(.footnote).foregroundStyle(.secondary)
@@ -114,11 +146,16 @@ struct LoadingRow: View {
     }
 }
 
-struct ErrorBanner: View {
-    let message: String
-    var retry: (() -> Void)?
+public struct ErrorBanner: View {
+    public init(message: String, retry: (() -> Void)? = nil) {
+        self.message = message
+        self.retry = retry
+    }
 
-    var body: some View {
+    public let message: String
+    public var retry: (() -> Void)?
+
+    public var body: some View {
         HStack(spacing: 10) {
             Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
             Text(message).font(.footnote)
@@ -135,13 +172,20 @@ struct ErrorBanner: View {
 }
 
 /// 工具栏上的玻璃按钮（保留旧名字，内部改用统一的 GlassIconButton）。
-struct ToolbarGlassButton: View {
-    let systemImage: String
-    var help: String = ""
-    var badge: Int = 0
-    let action: () -> Void
+public struct ToolbarGlassButton: View {
+    public init(systemImage: String, help: String = "", badge: Int = 0, action: @escaping () -> Void) {
+        self.systemImage = systemImage
+        self.help = help
+        self.badge = badge
+        self.action = action
+    }
 
-    var body: some View {
+    public let systemImage: String
+    public var help: String = ""
+    public var badge: Int = 0
+    public let action: () -> Void
+
+    public var body: some View {
         GlassIconButton(systemImage: systemImage, help: help, size: 28, badge: badge, action: action)
     }
 }

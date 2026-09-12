@@ -1,5 +1,7 @@
 import AppKit
 import SwiftUI
+import CoolapkKit
+import LiquidGlassUI
 
 /// Full dynamic view with the complete text, media, stats and the comment section.
 struct FeedDetailView: View {

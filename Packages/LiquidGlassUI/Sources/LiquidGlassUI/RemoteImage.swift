@@ -2,19 +2,28 @@ import AppKit
 import SwiftUI
 
 /// 带内存/磁盘缓存与降采样的远程图片。所有网络图片都经过这里。
-struct RemoteImage: View {
-    let url: String
-    var maxPixel: Int = 1_200
-    var contentMode: ContentMode = .fill
-    var showsPlaceholder = true
-    var cornerRadius: CGFloat = 0
-    var quality: Int = 2
+public struct RemoteImage: View {
+    public init(url: String, maxPixel: Int = 1_200, contentMode: ContentMode = .fill, showsPlaceholder: Bool = true, cornerRadius: CGFloat = 0, quality: Int = 2) {
+        self.url = url
+        self.maxPixel = maxPixel
+        self.contentMode = contentMode
+        self.showsPlaceholder = showsPlaceholder
+        self.cornerRadius = cornerRadius
+        self.quality = quality
+    }
+
+    public let url: String
+    public var maxPixel: Int = 1_200
+    public var contentMode: ContentMode = .fill
+    public var showsPlaceholder = true
+    public var cornerRadius: CGFloat = 0
+    public var quality: Int = 2
 
     @State private var image: NSImage?
     @State private var failed = false
     @State private var hovering = false
 
-    var body: some View {
+    public var body: some View {
         Group {
             if let image {
                 Image(nsImage: image)
@@ -39,7 +48,7 @@ struct RemoteImage: View {
         .task(id: url) {
             image = nil
             failed = false
-            guard AppStore.shared.showImages, !url.isEmpty else {
+            guard ImageLoading.showsImages, !url.isEmpty else {
                 failed = true
                 return
             }
@@ -53,12 +62,18 @@ struct RemoteImage: View {
     }
 }
 
-struct AvatarView: View {
-    let url: String
-    var size: CGFloat = 38
-    var level: Int = 0
+public struct AvatarView: View {
+    public init(url: String, size: CGFloat = 38, level: Int = 0) {
+        self.url = url
+        self.size = size
+        self.level = level
+    }
 
-    var body: some View {
+    public let url: String
+    public var size: CGFloat = 38
+    public var level: Int = 0
+
+    public var body: some View {
         RemoteImage(url: url, maxPixel: Int(size * 3.5), contentMode: .fill)
             .frame(width: size, height: size)
             .clipShape(Circle())
@@ -69,16 +84,26 @@ struct AvatarView: View {
 /// 单图展示：按图片真实比例布局。
 /// - `.crop`：限制最大高度，超出部分裁掉并显示「长图」标记（用于列表，保持版面整齐）。
 /// - `.fit`：完整显示整张图片（用于详情页，不丢失内容）。
-struct AdaptiveRemoteImage: View {
-    enum Mode { case crop, fit }
+public struct AdaptiveRemoteImage: View {
+    public init(url: String, maxWidth: CGFloat, maxHeight: CGFloat = 560, mode: Mode = .crop, quality: Int = 2, cornerRadius: CGFloat = 12, onTap: (() -> Void)? = nil) {
+        self.url = url
+        self.maxWidth = maxWidth
+        self.maxHeight = maxHeight
+        self.mode = mode
+        self.quality = quality
+        self.cornerRadius = cornerRadius
+        self.onTap = onTap
+    }
 
-    let url: String
-    var maxWidth: CGFloat
-    var maxHeight: CGFloat = 560
-    var mode: Mode = .crop
-    var quality: Int = 2
-    var cornerRadius: CGFloat = 12
-    var onTap: (() -> Void)?
+    public enum Mode { case crop, fit }
+
+    public let url: String
+    public var maxWidth: CGFloat
+    public var maxHeight: CGFloat = 560
+    public var mode: Mode = .crop
+    public var quality: Int = 2
+    public var cornerRadius: CGFloat = 12
+    public var onTap: (() -> Void)?
 
     @State private var image: NSImage?
     @State private var failed = false
@@ -103,7 +128,7 @@ struct AdaptiveRemoteImage: View {
         mode == .crop && naturalHeight > maxHeight + 1
     }
 
-    var body: some View {
+    public var body: some View {
         Group {
             if let image {
                 Image(nsImage: image)
@@ -157,7 +182,7 @@ struct AdaptiveRemoteImage: View {
     private func load() async {
         image = nil
         failed = false
-        guard AppStore.shared.showImages, !url.isEmpty else {
+        guard ImageLoading.showsImages, !url.isEmpty else {
             failed = true
             return
         }

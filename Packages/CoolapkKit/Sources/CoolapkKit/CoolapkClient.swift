@@ -1,6 +1,6 @@
 import Foundation
 
-enum APIError: LocalizedError {
+public enum APIError: LocalizedError {
     case blocked
     case expired
     case message(String)
@@ -8,7 +8,7 @@ enum APIError: LocalizedError {
     case unauthorized
     case decoding
 
-    var errorDescription: String? {
+    public var errorDescription: String? {
         switch self {
         case .blocked: return "请求被酷安安全策略拦截，请稍后再试"
         case .expired: return "登录状态已过期，请重新登录"
@@ -21,8 +21,8 @@ enum APIError: LocalizedError {
 }
 
 /// Sends signed requests to `api.coolapk.com`.
-actor CoolapkClient {
-    static let shared = CoolapkClient()
+public actor CoolapkClient {
+    public static let shared = CoolapkClient()
 
     private let session: URLSession
     private var deviceCode: String
@@ -36,7 +36,7 @@ actor CoolapkClient {
     private var token: String = ""
     private var sessid: String = ""
 
-    var isLoggedIn: Bool { !self.token.isEmpty }
+    public var isLoggedIn: Bool { !self.token.isEmpty }
 
     private init() {
         let configuration = URLSessionConfiguration.ephemeral
@@ -54,7 +54,7 @@ actor CoolapkClient {
 
     // MARK: - Session
 
-    func updateLogin(uid: String, username: String, token: String, sessid: String) {
+    public func updateLogin(uid: String, username: String, token: String, sessid: String) {
         self.uid = uid
         self.username = username
         self.token = token
@@ -62,7 +62,7 @@ actor CoolapkClient {
         rebuildCookie()
     }
 
-    func clearLogin() {
+    public func clearLogin() {
         uid = ""
         username = ""
         token = ""
@@ -70,7 +70,7 @@ actor CoolapkClient {
         loginCookie = ""
     }
 
-    func sessionSnapshot() -> (uid: String, username: String, token: String, sessid: String) {
+    public func sessionSnapshot() -> (uid: String, username: String, token: String, sessid: String) {
         (uid, username, token, sessid)
     }
 
@@ -193,12 +193,12 @@ actor CoolapkClient {
     }
 
     @discardableResult
-    func get(_ path: String, _ parameters: [String: String] = [:]) async throws -> JSON {
+    public func get(_ path: String, _ parameters: [String: String] = [:]) async throws -> JSON {
         try await perform(path: path, parameters: parameters, method: "GET", body: nil)
     }
 
     @discardableResult
-    func post(_ path: String, _ form: [String: String] = [:]) async throws -> JSON {
+    public func post(_ path: String, _ form: [String: String] = [:]) async throws -> JSON {
         let body = form
             .filter { !$0.value.isEmpty }
             .map { key, value in
@@ -211,7 +211,7 @@ actor CoolapkClient {
     }
 
     /// Multipart upload used by the image picker in the composer.
-    func upload(path: String, fieldName: String, filename: String, data: Data, mimeType: String = "image/jpeg") async throws -> JSON {
+    public func upload(path: String, fieldName: String, filename: String, data: Data, mimeType: String = "image/jpeg") async throws -> JSON {
         let boundary = "----CoolapkMac\(UUID().uuidString)"
         var body = Data()
         body.append(Data("--\(boundary)\r\n".utf8))
@@ -225,7 +225,7 @@ actor CoolapkClient {
     }
 
     /// `dataList` helper used by every page-style endpoint.
-    func dataList(url: String, page: Int, extra: [String: String] = [:]) async throws -> [JSON] {
+    public func dataList(url: String, page: Int, extra: [String: String] = [:]) async throws -> [JSON] {
         var parameters: [String: String] = ["url": url, "page": String(page), "t": String(Int(Date().timeIntervalSince1970))]
         for (key, value) in extra { parameters[key] = value }
         let json = try await get("/v6/page/dataList", parameters)

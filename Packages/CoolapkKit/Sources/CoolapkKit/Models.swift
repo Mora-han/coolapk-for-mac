@@ -1,10 +1,18 @@
 import Foundation
 
+/// 把接口返回的图片地址统一成 https，并支持协议相对地址。
+private func coolapkNormalizedURL(_ url: String) -> String {
+    guard !url.isEmpty else { return url }
+    if url.hasPrefix("http://") { return "https://" + url.dropFirst("http://".count) }
+    if url.hasPrefix("//") { return "https:" + url }
+    return url
+}
+
 // MARK: - Feed
 
 /// One dynamic (动态) row. Coolapk returns loosely typed JSON, so every field is coerced.
-struct FeedItem: Identifiable, Hashable {
-    enum Kind: String {
+public struct FeedItem: Identifiable, Hashable {
+    public enum Kind: String {
         case feed
         case product
         case topic
@@ -13,45 +21,45 @@ struct FeedItem: Identifiable, Hashable {
         case unknown
     }
 
-    let id: String
-    var kind: Kind = .feed
-    var uid: String = ""
-    var username: String = ""
-    var avatar: String = ""
-    var message: String = ""
-    var messageTitle: String = ""
-    var deviceTitle: String = ""
-    var ipLocation: String = ""
-    var dateline: Date?
-    var datelineText: String = ""
-    var likeNum: Int = 0
-    var commentNum: Int = 0
-    var replyNum: Int = 0
-    var forwardNum: Int = 0
-    var favNum: Int = 0
-    var shareNum: Int = 0
-    var pics: [String] = []
-    var cover: String = ""
-    var isLiked = false
-    var isFavorited = false
-    var isHeadline = false
-    var infoText: String = ""
-    var feedTypeName: String = "动态"
-    var targetTitle: String = ""
-    var targetURL: String = ""
-    var targetPic: String = ""
-    var targetInfo: String = ""
-    var forwardSourceName: String = ""
-    var replyRows: [ReplyItem] = []
-    var topReplyRows: [ReplyItem] = []
-    var sourceFeed: ForwardedContent?
-    var rankScore: Int = 0
-    var raw: JSON = .null
+    public let id: String
+    public var kind: Kind = .feed
+    public var uid: String = ""
+    public var username: String = ""
+    public var avatar: String = ""
+    public var message: String = ""
+    public var messageTitle: String = ""
+    public var deviceTitle: String = ""
+    public var ipLocation: String = ""
+    public var dateline: Date?
+    public var datelineText: String = ""
+    public var likeNum: Int = 0
+    public var commentNum: Int = 0
+    public var replyNum: Int = 0
+    public var forwardNum: Int = 0
+    public var favNum: Int = 0
+    public var shareNum: Int = 0
+    public var pics: [String] = []
+    public var cover: String = ""
+    public var isLiked = false
+    public var isFavorited = false
+    public var isHeadline = false
+    public var infoText: String = ""
+    public var feedTypeName: String = "动态"
+    public var targetTitle: String = ""
+    public var targetURL: String = ""
+    public var targetPic: String = ""
+    public var targetInfo: String = ""
+    public var forwardSourceName: String = ""
+    public var replyRows: [ReplyItem] = []
+    public var topReplyRows: [ReplyItem] = []
+    public var sourceFeed: ForwardedContent?
+    public var rankScore: Int = 0
+    public var raw: JSON = .null
 
-    static func == (lhs: FeedItem, rhs: FeedItem) -> Bool { lhs.id == rhs.id }
-    func hash(into hasher: inout Hasher) { hasher.combine(id) }
+    public static func == (lhs: FeedItem, rhs: FeedItem) -> Bool { lhs.id == rhs.id }
+    public func hash(into hasher: inout Hasher) { hasher.combine(id) }
 
-    init(json: JSON) {
+    public init(json: JSON) {
         raw = json
         id = json.id.exists ? json.id.identifier : json.entityId.identifier
         uid = json.uid.identifier
@@ -124,7 +132,7 @@ struct FeedItem: Identifiable, Hashable {
     }
 
     /// Text shown when the dynamic is a repost of another one.
-    var forwardLabel: String {
+    public var forwardLabel: String {
         if sourceFeed != nil { return "转发动态" }
         return ""
     }
@@ -133,16 +141,16 @@ struct FeedItem: Identifiable, Hashable {
 // MARK: - Reply
 
 /// Content of a reposted dynamic. Kept flat so `FeedItem` stays a value type.
-struct ForwardedContent: Hashable {
-    var id: String = ""
-    var username: String = ""
-    var avatar: String = ""
-    var message: String = ""
-    var pics: [String] = []
-    var datelineText: String = ""
-    var feedType: String = "feed"
+public struct ForwardedContent: Hashable {
+    public var id: String = ""
+    public var username: String = ""
+    public var avatar: String = ""
+    public var message: String = ""
+    public var pics: [String] = []
+    public var datelineText: String = ""
+    public var feedType: String = "feed"
 
-    init(json: JSON) {
+    public init(json: JSON) {
         id = json.id.exists ? json.id.identifier : json.entityId.identifier
         username = json.username.string
         avatar = json.userAvatar.string.isEmpty ? json.avatar.string : json.userAvatar.string
@@ -155,29 +163,29 @@ struct ForwardedContent: Hashable {
     }
 }
 
-struct ReplyItem: Identifiable, Hashable {
-    let id: String
-    var uid: String = ""
-    var username: String = ""
-    var avatar: String = ""
-    var message: String = ""
-    var replyToName: String = ""
-    var replyToID: String = ""
-    var rootID: String = ""
-    var dateline: Date?
-    var datelineText: String = ""
-    var likeNum: Int = 0
-    var replyNum: Int = 0
-    var isLiked = false
-    var isAuthor = false
-    var pics: [String] = []
-    var nested: [ReplyItem] = []
-    var raw: JSON = .null
+public struct ReplyItem: Identifiable, Hashable {
+    public let id: String
+    public var uid: String = ""
+    public var username: String = ""
+    public var avatar: String = ""
+    public var message: String = ""
+    public var replyToName: String = ""
+    public var replyToID: String = ""
+    public var rootID: String = ""
+    public var dateline: Date?
+    public var datelineText: String = ""
+    public var likeNum: Int = 0
+    public var replyNum: Int = 0
+    public var isLiked = false
+    public var isAuthor = false
+    public var pics: [String] = []
+    public var nested: [ReplyItem] = []
+    public var raw: JSON = .null
 
-    static func == (lhs: ReplyItem, rhs: ReplyItem) -> Bool { lhs.id == rhs.id }
-    func hash(into hasher: inout Hasher) { hasher.combine(id) }
+    public static func == (lhs: ReplyItem, rhs: ReplyItem) -> Bool { lhs.id == rhs.id }
+    public func hash(into hasher: inout Hasher) { hasher.combine(id) }
 
-    init(json: JSON) {
+    public init(json: JSON) {
         raw = json
         id = json.id.exists ? json.id.identifier : json.entityId.identifier
         uid = json.uid.identifier
@@ -202,30 +210,30 @@ struct ReplyItem: Identifiable, Hashable {
 
 // MARK: - User
 
-struct UserProfile: Identifiable, Hashable {
-    let id: String
-    var username: String = ""
-    var avatar: String = ""
-    var cover: String = ""
-    var bio: String = ""
-    var level: Int = 0
-    var experience: Int = 0
-    var nextLevelExperience: Int = 0
-    var followNum: Int = 0
-    var fansNum: Int = 0
-    var feedNum: Int = 0
-    var verifyLabel: String = ""
-    var verifyTitle: String = ""
-    var location: String = ""
-    var isFollowed = false
-    var gender: Int = 0
-    var registerDate: Date?
-    var raw: JSON = .null
+public struct UserProfile: Identifiable, Hashable {
+    public let id: String
+    public var username: String = ""
+    public var avatar: String = ""
+    public var cover: String = ""
+    public var bio: String = ""
+    public var level: Int = 0
+    public var experience: Int = 0
+    public var nextLevelExperience: Int = 0
+    public var followNum: Int = 0
+    public var fansNum: Int = 0
+    public var feedNum: Int = 0
+    public var verifyLabel: String = ""
+    public var verifyTitle: String = ""
+    public var location: String = ""
+    public var isFollowed = false
+    public var gender: Int = 0
+    public var registerDate: Date?
+    public var raw: JSON = .null
 
-    static func == (lhs: UserProfile, rhs: UserProfile) -> Bool { lhs.id == rhs.id }
-    func hash(into hasher: inout Hasher) { hasher.combine(id) }
+    public static func == (lhs: UserProfile, rhs: UserProfile) -> Bool { lhs.id == rhs.id }
+    public func hash(into hasher: inout Hasher) { hasher.combine(id) }
 
-    init(json: JSON) {
+    public init(json: JSON) {
         raw = json
         id = json.uid.exists ? json.uid.identifier : json.entityId.identifier
         username = json.username.string
@@ -247,18 +255,18 @@ struct UserProfile: Identifiable, Hashable {
     }
 }
 
-struct UserBrief: Identifiable, Hashable {
-    let id: String
-    var username: String
-    var avatar: String
-    var level: Int
-    var isFollowed: Bool
-    var bio: String
-    var verifyLabel: String
-    var fansNum: Int
-    var feedNum: Int
+public struct UserBrief: Identifiable, Hashable {
+    public let id: String
+    public var username: String
+    public var avatar: String
+    public var level: Int
+    public var isFollowed: Bool
+    public var bio: String
+    public var verifyLabel: String
+    public var fansNum: Int
+    public var feedNum: Int
 
-    init(json: JSON) {
+    public init(json: JSON) {
         id = json.uid.exists ? json.uid.identifier : json.entityId.identifier
         username = json.username.string
         avatar = json.userAvatar.string.isEmpty ? json.avatar.string : json.userAvatar.string
@@ -273,52 +281,76 @@ struct UserBrief: Identifiable, Hashable {
 
 // MARK: - Home cards
 
-struct HomeBanner: Identifiable, Hashable {
-    let id: String
-    var title: String
-    var subtitle: String
-    var image: String
-    var url: String
+public struct HomeBanner: Identifiable, Hashable {
+    public init(id: String, title: String, subtitle: String, image: String, url: String) {
+        self.id = id
+        self.title = title
+        self.subtitle = subtitle
+        self.image = image
+        self.url = url
+    }
+
+    public let id: String
+    public var title: String
+    public var subtitle: String
+    public var image: String
+    public var url: String
 }
 
-struct HomeIconLink: Identifiable, Hashable {
-    let id: String
-    var title: String
-    var image: String
-    var url: String
-    var subtitle: String = ""
+public struct HomeIconLink: Identifiable, Hashable {
+    public init(id: String, title: String, image: String, url: String, subtitle: String = "") {
+        self.id = id
+        self.title = title
+        self.image = image
+        self.url = url
+        self.subtitle = subtitle
+    }
+
+    public let id: String
+    public var title: String
+    public var image: String
+    public var url: String
+    public var subtitle: String = ""
 }
 
-struct HomeSection: Identifiable, Hashable {
-    let id: String
-    var title: String
-    var subtitle: String
-    var url: String
-    var style: String
+public struct HomeSection: Identifiable, Hashable {
+    public init(id: String, title: String, subtitle: String, url: String, style: String) {
+        self.id = id
+        self.title = title
+        self.subtitle = subtitle
+        self.url = url
+        self.style = style
+    }
+
+    public let id: String
+    public var title: String
+    public var subtitle: String
+    public var url: String
+    public var style: String
 }
 
-struct AppItem: Identifiable, Hashable {
-    let id: String
-    var title: String = ""
-    var subtitle: String = ""
-    var logo: String = ""
-    var score: String = ""
-    var size: String = ""
-    var version: String = ""
-    var developer: String = ""
-    var category: String = ""
-    var downloadCount: String = ""
-    var description: String = ""
-    var commentCount: Int = 0
-    var followCount: String = ""
-    var packageName: String = ""
-    var url: String = ""
-    var updateFlag: String = ""
-    var screenshots: [String] = []
-    var changelog: String = ""
-    var raw: JSON = .null
+public struct AppItem: Identifiable, Hashable {
+    public let id: String
+    public var title: String = ""
+    public var subtitle: String = ""
+    public var logo: String = ""
+    public var score: String = ""
+    public var size: String = ""
+    public var version: String = ""
+    public var developer: String = ""
+    public var category: String = ""
+    public var downloadCount: String = ""
+    public var description: String = ""
+    public var commentCount: Int = 0
+    public var followCount: String = ""
+    public var packageName: String = ""
+    public var url: String = ""
+    public var updateFlag: String = ""
+    public var screenshots: [String] = []
+    public var changelog: String = ""
+    public var raw: JSON = .null
 
-    init(json: JSON) {
+    public init(json: JSON) {
         raw = json
         id = json.id.exists ? json.id.identifier : json.entityId.identifier
         title = json.title.string
@@ -339,13 +371,13 @@ struct AppItem: Identifiable, Hashable {
         changelog = json.changelog.string
         screenshots = json.screenshots.string
             .split(separator: ",")
-            .map { ImageStore.normalize(String($0)) }
+            .map { coolapkNormalizedURL(String($0)) }
             .filter { !$0.isEmpty }
     }
 }
 
 /// A single row of a home feed: either rich header content or a dynamic.
-enum HomeFeedRow: Identifiable, Hashable {
+public enum HomeFeedRow: Identifiable, Hashable {
     case feed(FeedItem)
     case product(ProductItem)
     case topic(TopicItem)
@@ -356,7 +388,7 @@ enum HomeFeedRow: Identifiable, Hashable {
     case sections(String, [HomeSection])
     case text(String, String)
 
-    var id: String {
+    public var id: String {
         switch self {
         case let .feed(item): return "feed-\(item.id)"
         case let .product(item): return "product-\(item.id)"
@@ -373,19 +405,19 @@ enum HomeFeedRow: Identifiable, Hashable {
 
 // MARK: - Product / topic
 
-struct ProductItem: Identifiable, Hashable {
-    let id: String
-    var title: String = ""
-    var subtitle: String = ""
-    var logo: String = ""
-    var description: String = ""
-    var score: String = ""
-    var followNum: Int = 0
-    var isFollowed = false
-    var url: String = ""
-    var raw: JSON = .null
+public struct ProductItem: Identifiable, Hashable {
+    public let id: String
+    public var title: String = ""
+    public var subtitle: String = ""
+    public var logo: String = ""
+    public var description: String = ""
+    public var score: String = ""
+    public var followNum: Int = 0
+    public var isFollowed = false
+    public var url: String = ""
+    public var raw: JSON = .null
 
-    init(json: JSON) {
+    public init(json: JSON) {
         raw = json
         id = json.id.exists ? json.id.identifier : json.entityId.identifier
         title = json.title.string
@@ -399,17 +431,17 @@ struct ProductItem: Identifiable, Hashable {
     }
 }
 
-struct TopicItem: Identifiable, Hashable {
-    let id: String
-    var title: String = ""
-    var description: String = ""
-    var logo: String = ""
-    var feedNum: Int = 0
-    var followNum: Int = 0
-    var isFollowed = false
-    var raw: JSON = .null
+public struct TopicItem: Identifiable, Hashable {
+    public let id: String
+    public var title: String = ""
+    public var description: String = ""
+    public var logo: String = ""
+    public var feedNum: Int = 0
+    public var followNum: Int = 0
+    public var isFollowed = false
+    public var raw: JSON = .null
 
-    init(json: JSON) {
+    public init(json: JSON) {
         raw = json
         id = json.id.exists ? json.id.identifier : json.entityId.identifier
         title = json.title.string
@@ -424,22 +456,22 @@ struct TopicItem: Identifiable, Hashable {
 // MARK: - Notifications
 
 /// 收藏夹 (a curated collection of feeds).
-struct CollectionItem: Identifiable, Hashable {
-    let id: String
-    var title: String = ""
-    var subtitle: String = ""
-    var description: String = ""
-    var logo: String = ""
-    var username: String = ""
-    var avatar: String = ""
-    var uid: String = ""
-    var itemNum: Int = 0
-    var followNum: Int = 0
-    var likeNum: Int = 0
-    var isFollowed = false
-    var raw: JSON = .null
+public struct CollectionItem: Identifiable, Hashable {
+    public let id: String
+    public var title: String = ""
+    public var subtitle: String = ""
+    public var description: String = ""
+    public var logo: String = ""
+    public var username: String = ""
+    public var avatar: String = ""
+    public var uid: String = ""
+    public var itemNum: Int = 0
+    public var followNum: Int = 0
+    public var likeNum: Int = 0
+    public var isFollowed = false
+    public var raw: JSON = .null
 
-    init(json: JSON) {
+    public init(json: JSON) {
         raw = json
         id = json.id.exists ? json.id.identifier : json.entityId.identifier
         title = json.title.string
@@ -457,20 +489,20 @@ struct CollectionItem: Identifiable, Hashable {
 }
 
 /// 看看号 (a publisher / newspaper style account).
-struct DyhItem: Identifiable, Hashable {
-    let id: String
-    var title: String = ""
-    var description: String = ""
-    var logo: String = ""
-    var username: String = ""
-    var avatar: String = ""
-    var uid: String = ""
-    var followNum: Int = 0
-    var likeNum: Int = 0
-    var isFollowed = false
-    var raw: JSON = .null
+public struct DyhItem: Identifiable, Hashable {
+    public let id: String
+    public var title: String = ""
+    public var description: String = ""
+    public var logo: String = ""
+    public var username: String = ""
+    public var avatar: String = ""
+    public var uid: String = ""
+    public var followNum: Int = 0
+    public var likeNum: Int = 0
+    public var isFollowed = false
+    public var raw: JSON = .null
 
-    init(json: JSON) {
+    public init(json: JSON) {
         raw = json
         id = json.id.exists ? json.id.identifier : json.dyh_id.identifier
         title = json.title.string
@@ -486,14 +518,14 @@ struct DyhItem: Identifiable, Hashable {
 }
 
 /// One entry of the 热榜 ranking, used when a list card carries a score.
-struct RankEntry: Identifiable, Hashable {
-    let id: String
-    var title: String = ""
-    var subtitle: String = ""
-    var score: Int = 0
-    var url: String = ""
+public struct RankEntry: Identifiable, Hashable {
+    public let id: String
+    public var title: String = ""
+    public var subtitle: String = ""
+    public var score: Int = 0
+    public var url: String = ""
 
-    init(json: JSON) {
+    public init(json: JSON) {
         id = json.id.exists ? json.id.identifier : json.entityId.identifier
         title = json.title.string
         subtitle = json.sub_title.string.isEmpty ? json.description.string : json.sub_title.string
@@ -502,22 +534,22 @@ struct RankEntry: Identifiable, Hashable {
     }
 }
 
-struct NotificationItem: Identifiable, Hashable {
-    let id: String
-    var type: String = ""
-    var title: String = ""
-    var message: String = ""
-    var avatar: String = ""
-    var username: String = ""
-    var url: String = ""
-    var dateline: Date?
-    var datelineText: String = ""
-    var isRead = false
-    var extraTitle: String = ""
-    var extraPic: String = ""
-    var raw: JSON = .null
+public struct NotificationItem: Identifiable, Hashable {
+    public let id: String
+    public var type: String = ""
+    public var title: String = ""
+    public var message: String = ""
+    public var avatar: String = ""
+    public var username: String = ""
+    public var url: String = ""
+    public var dateline: Date?
+    public var datelineText: String = ""
+    public var isRead = false
+    public var extraTitle: String = ""
+    public var extraPic: String = ""
+    public var raw: JSON = .null
 
-    init(json: JSON) {
+    public init(json: JSON) {
         raw = json
         id = json.id.exists ? json.id.identifier : json.entityId.identifier
         type = json.type.string
@@ -534,16 +566,16 @@ struct NotificationItem: Identifiable, Hashable {
     }
 }
 
-struct MessageItem: Identifiable, Hashable {
-    let id: String
-    var username: String = ""
-    var avatar: String = ""
-    var message: String = ""
-    var dateline: Date?
-    var unreadNum: Int = 0
-    var uid: String = ""
+public struct MessageItem: Identifiable, Hashable {
+    public let id: String
+    public var username: String = ""
+    public var avatar: String = ""
+    public var message: String = ""
+    public var dateline: Date?
+    public var unreadNum: Int = 0
+    public var uid: String = ""
 
-    init(json: JSON) {
+    public init(json: JSON) {
         id = json.id.exists ? json.id.identifier : json.uid.identifier
         username = json.username.string
         avatar = json.userAvatar.string
@@ -554,18 +586,18 @@ struct MessageItem: Identifiable, Hashable {
     }
 }
 
-struct NotificationBadge: Equatable {
-    var notification = 0
-    var message = 0
-    var atMe = 0
-    var atCommentMe = 0
-    var commentMe = 0
-    var feedLike = 0
-    var contactsFollow = 0
+public struct NotificationBadge: Equatable {
+    public var notification = 0
+    public var message = 0
+    public var atMe = 0
+    public var atCommentMe = 0
+    public var commentMe = 0
+    public var feedLike = 0
+    public var contactsFollow = 0
 
-    var total: Int { notification + message }
+    public var total: Int { notification + message }
 
-    init(json: JSON = .null) {
+    public init(json: JSON = .null) {
         notification = json.notification.int
         message = json.message.int
         atMe = json.atme.int
@@ -578,15 +610,28 @@ struct NotificationBadge: Equatable {
 
 // MARK: - Sidebar model
 
-struct HomeTab: Identifiable, Hashable {
-    let id: String
-    var title: String
-    var pageName: String
-    var logo: String = ""
+public struct HomeTab: Identifiable, Hashable {
+    public init(id: String, title: String, pageName: String, logo: String = "") {
+        self.id = id
+        self.title = title
+        self.pageName = pageName
+        self.logo = logo
+    }
+
+    public let id: String
+    public var title: String
+    public var pageName: String
+    public var logo: String = ""
 }
 
-struct SidebarSection: Identifiable, Hashable {
-    let id: String
-    var title: String
-    var tabs: [HomeTab]
+public struct SidebarSection: Identifiable, Hashable {
+    public init(id: String, title: String, tabs: [HomeTab]) {
+        self.id = id
+        self.title = title
+        self.tabs = tabs
+    }
+
+    public let id: String
+    public var title: String
+    public var tabs: [HomeTab]
 }

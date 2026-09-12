@@ -1,5 +1,7 @@
 import AppKit
 import SwiftUI
+import CoolapkKit
+import LiquidGlassUI
 
 struct NotificationsView: View {
     enum Kind: String, CaseIterable, Identifiable {

@@ -1,6 +1,8 @@
 import AppKit
 import SwiftUI
 import UniformTypeIdentifiers
+import CoolapkKit
+import LiquidGlassUI
 
 /// Publishes a new dynamic (动态) with optional images.
 struct ComposeSheet: View {

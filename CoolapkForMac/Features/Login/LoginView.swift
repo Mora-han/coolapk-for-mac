@@ -1,6 +1,7 @@
 import AppKit
 import SwiftUI
 import WebKit
+import LiquidGlassUI
 
 /// Signs in through the official web login and captures the session cookies.
 struct LoginSheet: View {

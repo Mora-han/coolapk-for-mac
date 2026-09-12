@@ -1,5 +1,7 @@
 import AppKit
 import SwiftUI
+import CoolapkKit
+import LiquidGlassUI
 
 struct SearchView: View {
     @Environment(AppStore.self) private var store

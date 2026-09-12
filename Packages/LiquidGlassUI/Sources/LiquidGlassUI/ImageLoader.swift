@@ -2,30 +2,10 @@ import AppKit
 import CryptoKit
 import Foundation
 
-/// Coolapk emoji are plain `[name]` tokens in the message body; the images ship with the app.
-enum EmojiStore {
-    private static var cache: [String: NSImage] = [:]
-    private static let lock = NSLock()
-
-    static func image(named name: String) -> NSImage? {
-        lock.lock()
-        defer { lock.unlock() }
-        if let cached = cache[name] { return cached }
-        let file = name.hasSuffix(".png") ? String(name.dropLast(4)) : name
-        guard let url = Bundle.main.url(forResource: file, withExtension: "png", subdirectory: "Emoji")
-            ?? Bundle.main.url(forResource: file, withExtension: "png"),
-            let image = NSImage(contentsOf: url) else { return nil }
-        cache[name] = image
-        return image
-    }
-
-    static func hasEmoji(named name: String) -> Bool { image(named: name) != nil }
-}
-
 /// Remote image loading with a two level cache (memory + disk) and thumbnail downsampling.
 @MainActor
-final class ImageStore {
-    static let shared = ImageStore()
+public final class ImageStore {
+    public static let shared = ImageStore()
 
     private let memory = NSCache<NSString, NSImage>()
     private var running: [String: Task<NSImage?, Never>] = [:]
@@ -39,7 +19,7 @@ final class ImageStore {
         try? FileManager.default.createDirectory(at: cacheDirectory, withIntermediateDirectories: true)
     }
 
-    nonisolated static func normalize(_ url: String) -> String {
+    public nonisolated static func normalize(_ url: String) -> String {
         guard !url.isEmpty else { return url }
         if url.hasPrefix("http://") {
             return "https://" + url.dropFirst("http://".count)
@@ -49,7 +29,7 @@ final class ImageStore {
     }
 
     /// Rewrites the Coolapk CDN size suffix to fetch a smaller variant.
-    nonisolated static func resized(_ url: String, quality: Int) -> String {
+    public nonisolated static func resized(_ url: String, quality: Int) -> String {
         guard quality < 2 else { return url }
         guard let range = url.range(of: "@", options: .backwards) else { return url }
         let suffix = url[range.upperBound...]
@@ -63,7 +43,7 @@ final class ImageStore {
         return String(url[..<range.lowerBound]) + "@\(newWidth)x\(newHeight).jpg"
     }
 
-    func image(for rawURL: String, maxPixel: Int = 1400) async -> NSImage? {
+    public func image(for rawURL: String, maxPixel: Int = 1400) async -> NSImage? {
         let url = ImageStore.normalize(rawURL)
         guard !url.isEmpty, let link = URL(string: url) else { return nil }
         let key = "\(url)|\(maxPixel)" as NSString
@@ -77,7 +57,9 @@ final class ImageStore {
             }
             var request = URLRequest(url: link)
             // The image CDN only answers requests that carry the app user agent.
-            request.setValue(CoolapkToken.userAgent, forHTTPHeaderField: "User-Agent")
+            if !ImageLoading.userAgent.isEmpty {
+                request.setValue(ImageLoading.userAgent, forHTTPHeaderField: "User-Agent")
+            }
             request.setValue("gzip, deflate", forHTTPHeaderField: "Accept-Encoding")
             guard let (data, _) = try? await URLSession.shared.data(for: request), !data.isEmpty else { return nil }
             let image = ImageStore.downsample(data: data, maxPixel: maxPixel)
@@ -95,7 +77,7 @@ final class ImageStore {
         return image
     }
 
-    static func downsample(data: Data, maxPixel: Int) -> NSImage? {
+    public static func downsample(data: Data, maxPixel: Int) -> NSImage? {
         guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
         let options: [CFString: Any] = [
             kCGImageSourceCreateThumbnailFromImageAlways: true,
@@ -111,7 +93,7 @@ final class ImageStore {
         Insecure.MD5.hash(data: Data(text.utf8)).map { String(format: "%02x", $0) }.joined()
     }
 
-    func diskCacheSize() async -> Int64 {
+    public func diskCacheSize() async -> Int64 {
         await Task.detached {
             let fileManager = FileManager.default
             guard let files = try? fileManager.contentsOfDirectory(at: self.cacheDirectory, includingPropertiesForKeys: [.fileSizeKey]) else { return 0 }
@@ -124,7 +106,7 @@ final class ImageStore {
         }.value
     }
 
-    func clearDiskCache() async {
+    public func clearDiskCache() async {
         let directory = cacheDirectory
         await Task.detached {
             let fileManager = FileManager.default

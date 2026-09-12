@@ -16,3 +16,12 @@
 - 深链路由：/t/、/u/、/feed/、/apk/、/product/、/collection/、/dyh/、/question/、/vote/、/page?url=
 - 社交子页面：收藏夹、看看号、问答、投票讨论、点赞的人、转发列表、编辑历史。
 - 图片与表情：548 个官方表情本地内置，图片内存 + 磁盘缓存与降采样。
+
+## 0.3.0 — 模块化拆分
+- 新增本地 Swift 包 `Packages/CoolapkKit`：签名请求、Token 生成、bcrypt、JSON、全部接口、
+  数据模型、富文本渲染，不依赖任何 UI，可被其它项目直接引用。
+- 新增本地 Swift 包 `Packages/LiquidGlassUI`：配色排版、玻璃组件、远程图片、图片查看器，
+  与酷安业务解耦，可复用到任意 macOS 项目。
+- 图片加载改为依赖注入：`ImageLoading.userAgent` / `ImageLoading.showsImages`，
+  宿主 App 启动时注入，包内不再引用业务代码。
+- 应用层只保留 `App/` 与 `Features/`，`project.yml` 通过本地包依赖引入两者。

@@ -1,5 +1,7 @@
 import AppKit
 import SwiftUI
+import CoolapkKit
+import LiquidGlassUI
 
 // MARK: - App card
 

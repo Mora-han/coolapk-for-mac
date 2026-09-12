@@ -3,9 +3,9 @@ import SwiftUI
 
 // MARK: - 基础玻璃面板
 
-extension View {
+public extension View {
     /// Liquid Glass 面板，用于浮动条、悬浮控件与需要透出背景的容器。
-    func glassPanel(
+    public func glassPanel(
         cornerRadius: CGFloat = Metrics.cardRadius,
         tint: Color? = nil,
         interactive: Bool = false
@@ -20,7 +20,7 @@ extension View {
     }
 
     /// 更轻薄的玻璃，适合叠在内容之上的小徽标。
-    func glassChip(cornerRadius: CGFloat = 10, tint: Color? = nil) -> some View {
+    public func glassChip(cornerRadius: CGFloat = 10, tint: Color? = nil) -> some View {
         let glass: Glass = {
             var base: Glass = .clear
             if let tint { base = base.tint(tint) }
@@ -30,7 +30,7 @@ extension View {
     }
 
     /// 悬浮抬升效果：轻微放大 + 阴影，用于卡片 hover。
-    func hoverLift(_ hovering: Bool, scale: CGFloat = 1.006) -> some View {
+    public func hoverLift(_ hovering: Bool, scale: CGFloat = 1.006) -> some View {
         scaleEffect(hovering ? scale : 1)
             .shadow(color: .black.opacity(hovering ? 0.14 : 0), radius: hovering ? 10 : 0, y: hovering ? 3 : 0)
             .animation(.snappy(duration: 0.18), value: hovering)
@@ -41,16 +41,27 @@ extension View {
 
 /// 横向玻璃胶囊标签栏，选中项用 matchedGeometry 平滑过渡。
 /// 只暴露 `isSelected` / `onSelect`，因此可以驱动任意类型的选中值。
-struct GlassPillBar<Item: Identifiable>: View {
-    let items: [Item]
-    let title: (Item) -> String
-    let isSelected: (Item) -> Bool
-    var icon: ((Item) -> String)?
-    var onSelect: (Item) -> Void
+public struct GlassPillBar<Item: Identifiable>: View {
+    public init(items: [Item], title: @escaping (Item) -> String,
+        isSelected: @escaping (Item) -> Bool,
+        icon: ((Item) -> String)? = nil,
+        onSelect: @escaping (Item) -> Void) {
+        self.items = items
+        self.title = title
+        self.isSelected = isSelected
+        self.icon = icon
+        self.onSelect = onSelect
+    }
+
+    public let items: [Item]
+    public let title: (Item) -> String
+    public let isSelected: (Item) -> Bool
+    public var icon: ((Item) -> String)?
+    public var onSelect: (Item) -> Void
 
     @Namespace private var namespace
 
-    var body: some View {
+    public var body: some View {
         ScrollView(.horizontal) {
             GlassEffectContainer(spacing: 6) {
                 HStack(spacing: 6) {
@@ -94,17 +105,26 @@ struct GlassPillBar<Item: Identifiable>: View {
 // MARK: - 玻璃按钮
 
 /// 圆形玻璃图标按钮，用于详情页、查看器与各类浮动控件。
-struct GlassIconButton: View {
-    let systemImage: String
-    var help = ""
-    var size: CGFloat = 28
-    var tint: Color?
-    var badge: Int = 0
-    let action: () -> Void
+public struct GlassIconButton: View {
+    public init(systemImage: String, help: String = "", size: CGFloat = 28, tint: Color? = nil, badge: Int = 0, action: @escaping () -> Void) {
+        self.systemImage = systemImage
+        self.help = help
+        self.size = size
+        self.tint = tint
+        self.badge = badge
+        self.action = action
+    }
+
+    public let systemImage: String
+    public var help = ""
+    public var size: CGFloat = 28
+    public var tint: Color?
+    public var badge: Int = 0
+    public let action: () -> Void
 
     @State private var hovering = false
 
-    var body: some View {
+    public var body: some View {
         Button(action: action) {
             Image(systemName: systemImage)
                 .font(.system(size: size * 0.46, weight: .medium))
@@ -132,17 +152,26 @@ struct GlassIconButton: View {
 }
 
 /// 主行动按钮：玻璃底 + 品牌色描边，用于“关注 / 登录 / 发送”。
-struct GlassActionButton: View {
-    let title: String
-    var systemImage: String?
-    var prominent = true
-    var tint: Color = Palette.brand
-    var minWidth: CGFloat = 72
-    let action: () -> Void
+public struct GlassActionButton: View {
+    public init(title: String, systemImage: String? = nil, prominent: Bool = true, tint: Color = Palette.brand, minWidth: CGFloat = 72, action: @escaping () -> Void) {
+        self.title = title
+        self.systemImage = systemImage
+        self.prominent = prominent
+        self.tint = tint
+        self.minWidth = minWidth
+        self.action = action
+    }
+
+    public let title: String
+    public var systemImage: String?
+    public var prominent = true
+    public var tint: Color = Palette.brand
+    public var minWidth: CGFloat = 72
+    public let action: () -> Void
 
     @State private var hovering = false
 
-    var body: some View {
+    public var body: some View {
         Button(action: action) {
             HStack(spacing: 5) {
                 if let systemImage {
@@ -167,12 +196,18 @@ struct GlassActionButton: View {
 // MARK: - 玻璃容器
 
 /// 工具条式玻璃容器，可放多个控件并让它们自然融合（Liquid Glass morphing）。
-struct GlassBar<Content: View>: View {
-    var cornerRadius: CGFloat = Metrics.panelRadius
-    var spacing: CGFloat = 10
-    @ViewBuilder var content: Content
+public struct GlassBar<Content: View>: View {
+    public init(cornerRadius: CGFloat = Metrics.panelRadius, spacing: CGFloat = 10, content: Content) {
+        self.cornerRadius = cornerRadius
+        self.spacing = spacing
+        self.content = content
+    }
 
-    var body: some View {
+    public var cornerRadius: CGFloat = Metrics.panelRadius
+    public var spacing: CGFloat = 10
+    @ViewBuilder public var content: Content
+
+    public var body: some View {
         GlassEffectContainer(spacing: spacing) {
             HStack(spacing: spacing) { content }
                 .padding(.horizontal, 12)
@@ -183,11 +218,16 @@ struct GlassBar<Content: View>: View {
 }
 
 /// 悬浮在内容之上的玻璃页脚/页头容器。
-struct GlassFooter<Content: View>: View {
-    var cornerRadius: CGFloat = Metrics.panelRadius
-    @ViewBuilder var content: Content
+public struct GlassFooter<Content: View>: View {
+    public init(cornerRadius: CGFloat = Metrics.panelRadius, content: Content) {
+        self.cornerRadius = cornerRadius
+        self.content = content
+    }
 
-    var body: some View {
+    public var cornerRadius: CGFloat = Metrics.panelRadius
+    @ViewBuilder public var content: Content
+
+    public var body: some View {
         content
             .padding(.horizontal, 12)
             .padding(.vertical, 9)

@@ -1,5 +1,7 @@
 import AppKit
 import SwiftUI
+import CoolapkKit
+import LiquidGlassUI
 
 struct SettingsView: View {
     @Environment(AppStore.self) private var store

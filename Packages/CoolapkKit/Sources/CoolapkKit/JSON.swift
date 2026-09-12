@@ -2,7 +2,7 @@ import Foundation
 
 /// Lightweight dynamic JSON value. Coolapk responses mix strings and numbers for the same
 /// field, so every accessor coerces instead of failing.
-enum JSONValue: Hashable {
+public enum JSONValue: Hashable {
     case null
     case bool(Bool)
     case number(Double)
@@ -10,7 +10,7 @@ enum JSONValue: Hashable {
     case array([JSONValue])
     case object([String: JSONValue])
 
-    init(any value: Any) {
+    public init(any value: Any) {
         switch value {
         case let value as NSNull:
             _ = value
@@ -34,32 +34,32 @@ enum JSONValue: Hashable {
 }
 
 @dynamicMemberLookup
-struct JSON: Hashable {
-    let value: JSONValue
+public struct JSON: Hashable {
+    public let value: JSONValue
 
-    static let null = JSON(value: .null)
+    public static let null = JSON(value: .null)
 
-    init(value: JSONValue) { self.value = value }
-    init(any: Any) { self.value = JSONValue(any: any) }
+    public init(value: JSONValue) { self.value = value }
+    public init(any: Any) { self.value = JSONValue(any: any) }
 
-    init(data: Data) throws {
+    public init(data: Data) throws {
         let object = try JSONSerialization.jsonObject(with: data, options: [.allowFragments])
         self.value = JSONValue(any: object)
     }
 
-    subscript(dynamicMember key: String) -> JSON {
+    public subscript(dynamicMember key: String) -> JSON {
         if case let .object(dict) = value, let child = dict[key] { return JSON(value: child) }
         return .null
     }
 
-    subscript(index: Int) -> JSON {
+    public subscript(index: Int) -> JSON {
         if case let .array(items) = value, items.indices.contains(index) { return JSON(value: items[index]) }
         return .null
     }
 
-    var isNull: Bool { if case .null = value { return true }; return false }
+    public var isNull: Bool { if case .null = value { return true }; return false }
 
-    var string: String {
+    public var string: String {
         switch value {
         case let .string(text): return text
         case let .number(number):
@@ -70,9 +70,9 @@ struct JSON: Hashable {
         }
     }
 
-    var optionalString: String? { isNull ? nil : string }
+    public var optionalString: String? { isNull ? nil : string }
 
-    var int: Int {
+    public var int: Int {
         switch value {
         case let .number(number): return Int(number)
         case let .string(text): return Int(text) ?? Int(Double(text) ?? 0)
@@ -82,7 +82,7 @@ struct JSON: Hashable {
     }
 
     /// IDs are integers in some payloads and strings in others.
-    var identifier: String {
+    public var identifier: String {
         switch value {
         case let .number(number): return String(Int(number))
         case let .string(text): return text
@@ -90,7 +90,7 @@ struct JSON: Hashable {
         }
     }
 
-    var double: Double {
+    public var double: Double {
         switch value {
         case let .number(number): return number
         case let .string(text): return Double(text) ?? 0
@@ -98,7 +98,7 @@ struct JSON: Hashable {
         }
     }
 
-    var bool: Bool {
+    public var bool: Bool {
         switch value {
         case let .bool(flag): return flag
         case let .number(number): return number != 0
@@ -107,19 +107,19 @@ struct JSON: Hashable {
         }
     }
 
-    var array: [JSON] {
+    public var array: [JSON] {
         if case let .array(items) = value { return items.map { JSON(value: $0) } }
         return []
     }
 
-    var dictionary: [String: JSON] {
+    public var dictionary: [String: JSON] {
         if case let .object(dict) = value { return dict.mapValues { JSON(value: $0) } }
         return [:]
     }
 
-    var exists: Bool { !isNull }
+    public var exists: Bool { !isNull }
 
-    var date: Date? {
+    public var date: Date? {
         let stamp = int
         guard stamp > 0 else { return nil }
         return Date(timeIntervalSince1970: TimeInterval(stamp))

@@ -1,6 +1,8 @@
 import Foundation
 import Observation
 import SwiftUI
+import CoolapkKit
+import LiquidGlassUI
 
 /// Sidebar destinations.
 enum NavItem: Hashable, Identifiable {
@@ -72,6 +74,9 @@ final class AppStore {
 
     // Settings
     var showImages = true
+    {
+        didSet { ImageLoading.showsImages = showImages }
+    }
     var usesHighQualityImages = true
     var showsDeviceInfo = true
     var fontSize: Double = 15
@@ -109,7 +114,9 @@ final class AppStore {
     var activeTabs: [String: String] = [:]
 
     private init() {
+        ImageLoading.userAgent = CoolapkToken.userAgent
         load()
+        ImageLoading.showsImages = showImages
     }
 
     func load() {

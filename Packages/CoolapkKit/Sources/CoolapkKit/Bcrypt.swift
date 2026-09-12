@@ -2,7 +2,7 @@ import Foundation
 
 /// A dependency free implementation of the bcrypt password hashing function
 /// (EksBlowfish, Provos & Mazieres) used by the Coolapk `X-App-Token` v2 scheme.
-enum BCrypt {
+public enum BCrypt {
     private static let alphabet: [UInt8] =
         Array("./ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789".utf8)
 
@@ -14,7 +14,7 @@ enum BCrypt {
 
     // MARK: - Base64 (bcrypt alphabet)
 
-    static func base64Decode(_ input: [UInt8]) -> [UInt8] {
+    public static func base64Decode(_ input: [UInt8]) -> [UInt8] {
         var output: [UInt8] = []
         output.reserveCapacity(input.count * 3 / 4)
         var bits = 0
@@ -32,7 +32,7 @@ enum BCrypt {
         return output
     }
 
-    static func base64Encode(_ input: [UInt8]) -> String {
+    public static func base64Encode(_ input: [UInt8]) -> String {
         var output: [UInt8] = []
         output.reserveCapacity((input.count * 4 + 2) / 3 + 1)
         var bits = 0
@@ -53,12 +53,12 @@ enum BCrypt {
 
     // MARK: - Blowfish state
 
-    struct State {
-        var p = BlowfishTables.p
-        var s = BlowfishTables.s0 + BlowfishTables.s1 + BlowfishTables.s2 + BlowfishTables.s3
+    public struct State {
+        public var p = BlowfishTables.p
+        public var s = BlowfishTables.s0 + BlowfishTables.s1 + BlowfishTables.s2 + BlowfishTables.s3
 
         @inline(__always)
-        func f(_ x: UInt32) -> UInt32 {
+        public func f(_ x: UInt32) -> UInt32 {
             let a = Int((x >> 24) & 0xFF)
             let b = Int((x >> 16) & 0xFF)
             let c = Int((x >> 8) & 0xFF)
@@ -67,7 +67,7 @@ enum BCrypt {
         }
 
         @inline(__always)
-        mutating func encipher(_ xl: inout UInt32, _ xr: inout UInt32) {
+        public mutating func encipher(_ xl: inout UInt32, _ xr: inout UInt32) {
             var l = xl
             var r = xr
             var i = 0
@@ -157,7 +157,7 @@ enum BCrypt {
     // MARK: - Public API
 
     /// Exposed for self tests: standard Blowfish key schedule followed by one encryption.
-    static func blowfishEncrypt(block: (UInt32, UInt32), key: [UInt8]) -> (UInt32, UInt32) {
+    public static func blowfishEncrypt(block: (UInt32, UInt32), key: [UInt8]) -> (UInt32, UInt32) {
         var state = State()
         expandKey(&state, salt: nil, key: key)
         var left = block.0
@@ -168,7 +168,7 @@ enum BCrypt {
 
     /// Hashes `password` using an explicit 29 character bcrypt salt such as `$2y$10$abcdefghijklmnopqrstuv`.
     /// Returns a 60 character hash string.
-    static func hash(password: [UInt8], salt saltString: String) -> String? {
+    public static func hash(password: [UInt8], salt saltString: String) -> String? {
         let saltBytes = Array(saltString.utf8)
         guard saltBytes.count == 29,
               saltBytes[0] == UInt8(ascii: "$"),
@@ -187,7 +187,7 @@ enum BCrypt {
     }
 
     /// The raw 24 byte bcrypt ciphertext, exposed for self tests.
-    static func rawHash(password: [UInt8], salt: [UInt8], cost: Int) -> [UInt8] {
+    public static func rawHash(password: [UInt8], salt: [UInt8], cost: Int) -> [UInt8] {
         var key = password
         key.append(0)
 

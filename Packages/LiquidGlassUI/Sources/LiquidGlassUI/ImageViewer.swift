@@ -1,17 +1,23 @@
 import AppKit
 import SwiftUI
 
-struct ViewerState: Identifiable, Hashable {
-    let id = UUID()
-    var images: [String]
-    var index: Int
-    var title: String = ""
+public struct ViewerState: Identifiable, Hashable {
+    public init(images: [String], index: Int, title: String = "") {
+        self.images = images
+        self.index = index
+        self.title = title
+    }
+
+    public let id = UUID()
+    public var images: [String]
+    public var index: Int
+    public var title: String = ""
 }
 
 /// Full screen image browser with zoom, pan and keyboard navigation.
-struct ImageViewerOverlay: View {
-    let state: ViewerState
-    var onClose: () -> Void
+public struct ImageViewerOverlay: View {
+    public let state: ViewerState
+    public var onClose: () -> Void
 
     @State private var index: Int
     @State private var zoom: CGFloat = 1
@@ -19,13 +25,13 @@ struct ImageViewerOverlay: View {
     @State private var dragStart: CGSize = .zero
     @State private var savedMessage: String?
 
-    init(state: ViewerState, onClose: @escaping () -> Void) {
+    public init(state: ViewerState, onClose: @escaping () -> Void) {
         self.state = state
         self.onClose = onClose
         _index = State(initialValue: state.index)
     }
 
-    var body: some View {
+    public var body: some View {
         ZStack {
             Rectangle()
                 .fill(.black.opacity(0.86))

@@ -19,13 +19,31 @@ open CoolapkForMac.xcodeproj
 
 ## 目录结构
 
+代码按职责拆成两个可独立复用的本地 Swift 包 + 一个 App 层：
+
 ```
-CoolapkForMac/
-  App/           应用入口、三栏主界面（NavigationSplitView）
-  Core/          网络与鉴权：CoolapkClient、CoolapkToken、Bcrypt、JSON、API、AppStore
-  Models/        接口数据模型
-  RichText/      HTML 转 NSAttributedString、NSTextView 富文本视图
-  UI/            设计系统：配色、玻璃面板、远程图片、图片查看器
+Packages/
+  CoolapkKit/          酷安接口工具包（不依赖任何 UI，可直接给别的项目用）
+    CoolapkClient      签名请求、token 缓存、失败重试、multipart 上传
+    CoolapkToken       X-App-Token v2 生成（Android UA 要求）
+    Bcrypt / BlowfishTables   纯 Swift bcrypt 实现，无第三方依赖
+    JSON               容错 JSON 包装
+    API                全部接口封装
+    Models             数据模型
+    FeedHTML           酷安 HTML 转 NSAttributedString（表情、话题、链接）
+    RichTextView       NSTextView 富文本视图
+    EmojiStore         本地表情资源
+
+  LiquidGlassUI/       Liquid Glass 设计系统（与业务无关，可复用）
+    Theme              配色、尺寸、格式化工具
+    Glass              玻璃面板、胶囊 Tab、玻璃按钮等组件
+    RemoteImage        远程图片（内存 + 磁盘缓存、降采样）、自适应比例单图
+    ImageViewer        图片查看器（缩放、拖拽、缩略图、存储、复制）
+    ImageLoader        图片缓存实现
+    CommonViews        计数、标签、空状态、加载、错误条
+
+CoolapkForMac/         应用层
+  App/           应用入口、三栏主界面（NavigationSplitView）、AppStore
   Features/      按功能划分的页面
     Home/          首页信息流与各类卡片
     Detail/        动态详情与评论
@@ -38,6 +56,13 @@ CoolapkForMac/
     Login/         登录
     Settings/      设置
   Resources/Emoji/  官方表情包
+```
+
+两个包可以单独使用：
+
+```swift
+import CoolapkKit      // 只要接口能力
+import LiquidGlassUI   // 只要界面组件
 ```
 
 ## 登录

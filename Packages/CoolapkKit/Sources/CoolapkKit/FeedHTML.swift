@@ -2,7 +2,7 @@ import AppKit
 import Foundation
 
 /// Where a tapped link inside a dynamic should take the reader.
-enum FeedLink: Hashable {
+public enum FeedLink: Hashable {
     case topic(String)
     case user(String)
     case feed(String)
@@ -18,11 +18,11 @@ enum FeedLink: Hashable {
 
 /// Converts the small HTML subset used by Coolapk messages into an attributed string with
 /// inline emoji, tappable links and lightweight styling.
-enum FeedHTML {
+public enum FeedHTML {
     private static let cache = NSCache<NSString, NSAttributedString>()
 
     /// Cached variant used by list rows; the key covers content, size and appearance.
-    static func cachedAttributedString(html: String, fontSize: CGFloat, color: NSColor) -> NSAttributedString {
+    public static func cachedAttributedString(html: String, fontSize: CGFloat, color: NSColor) -> NSAttributedString {
         let appearance = color == .labelColor ? "auto" : color.description
         let key = "\(fontSize)|\(appearance)|\(html)" as NSString
         if let cached = cache.object(forKey: key) { return cached }
@@ -31,7 +31,7 @@ enum FeedHTML {
         return result
     }
 
-    static func attributedString(
+    public static func attributedString(
         html: String,
         fontSize: CGFloat,
         textColor: NSColor,
@@ -197,7 +197,7 @@ enum FeedHTML {
     }
 
     /// Rewrites relative Coolapk links into a custom scheme the app can route.
-    static func resolve(_ href: String) -> String {
+    public static func resolve(_ href: String) -> String {
         let trimmed = decodeEntities(href).trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmed.hasPrefix("http://") || trimmed.hasPrefix("https://") { return trimmed }
         if trimmed.hasPrefix("/t/") {
@@ -247,7 +247,7 @@ enum FeedHTML {
         text.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? text
     }
 
-    static func route(from url: URL) -> FeedLink? {
+    public static func route(from url: URL) -> FeedLink? {
         let text = url.absoluteString
         guard text.hasPrefix("coolapk://") else { return .web(url) }
         guard let components = URLComponents(string: text) else { return nil }
@@ -271,7 +271,7 @@ enum FeedHTML {
         }
     }
 
-    static func decodeEntities(_ text: String) -> String {
+    public static func decodeEntities(_ text: String) -> String {
         guard text.contains("&") else { return text }
         var output = text
         let entities: [(String, String)] = [
@@ -283,7 +283,7 @@ enum FeedHTML {
     }
 
     /// Plain text version, used for notifications and search previews.
-    static func plainText(_ html: String) -> String {
+    public static func plainText(_ html: String) -> String {
         var output = html
         output = output.replacingOccurrences(of: "<br>", with: " ")
         output = output.replacingOccurrences(of: "<br/>", with: " ")

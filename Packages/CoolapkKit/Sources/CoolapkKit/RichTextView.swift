@@ -2,8 +2,8 @@ import AppKit
 import SwiftUI
 
 /// Measurement helpers shared by the rich text view and the feed cards.
-enum RichTextMeasure {
-    static func layout(_ string: NSAttributedString, width: CGFloat, maxLines: Int) -> (height: CGFloat, truncated: Bool) {
+public enum RichTextMeasure {
+    public static func layout(_ string: NSAttributedString, width: CGFloat, maxLines: Int) -> (height: CGFloat, truncated: Bool) {
         guard width > 1 else { return (0, false) }
         let storage = NSTextStorage(attributedString: string)
         let container = NSTextContainer(size: NSSize(width: width, height: .greatestFiniteMagnitude))
@@ -25,23 +25,32 @@ enum RichTextMeasure {
         return (ceil(rect.height), truncated)
     }
 
-    static func height(_ string: NSAttributedString, width: CGFloat, maxLines: Int = 0) -> CGFloat {
+    public static func height(_ string: NSAttributedString, width: CGFloat, maxLines: Int = 0) -> CGFloat {
         layout(string, width: width, maxLines: maxLines).height
     }
 }
 
 /// AppKit backed rich text view. TextKit handles selection, links, emoji attachments and
 /// line truncation exactly like the system does, which keeps the layout native.
-struct RichTextView: NSViewRepresentable {
-    let attributed: NSAttributedString
-    var maxLines: Int = 0
-    var isSelectable = true
-    var onLink: ((FeedLink) -> Void)?
-    var onTap: (() -> Void)?
+public struct RichTextView: NSViewRepresentable {
+    public init(attributed: NSAttributedString, maxLines: Int = 0, isSelectable: Bool = true, onLink: ((FeedLink) -> Void)? = nil,
+        onTap: (() -> Void)? = nil) {
+        self.attributed = attributed
+        self.maxLines = maxLines
+        self.isSelectable = isSelectable
+        self.onLink = onLink
+        self.onTap = onTap
+    }
 
-    func makeCoordinator() -> Coordinator { Coordinator(self) }
+    public let attributed: NSAttributedString
+    public var maxLines: Int = 0
+    public var isSelectable = true
+    public var onLink: ((FeedLink) -> Void)?
+    public var onTap: (() -> Void)?
 
-    func makeNSView(context: Context) -> RichTextContainer {
+    public func makeCoordinator() -> Coordinator { Coordinator(self) }
+
+    public func makeNSView(context: Context) -> RichTextContainer {
         let view = RichTextContainer()
         view.onLink = onLink
         view.onTap = onTap
@@ -50,26 +59,26 @@ struct RichTextView: NSViewRepresentable {
         return view
     }
 
-    func updateNSView(_ view: RichTextContainer, context: Context) {
+    public func updateNSView(_ view: RichTextContainer, context: Context) {
         view.onLink = onLink
         view.onTap = onTap
         context.coordinator.parent = self
         view.apply(attributed: attributed, maxLines: maxLines, isSelectable: isSelectable)
     }
 
-    func sizeThatFits(_ proposal: ProposedViewSize, nsView: RichTextContainer, context: Context) -> CGSize? {
+    public func sizeThatFits(_ proposal: ProposedViewSize, nsView: RichTextContainer, context: Context) -> CGSize? {
         let width = proposal.width ?? nsView.bounds.width
         guard width > 1 else { return nil }
         let height = RichTextMeasure.height(nsView.richAttributedString(), width: width, maxLines: maxLines)
         return CGSize(width: width, height: max(height, 1))
     }
 
-    final class Coordinator: NSObject, NSTextViewDelegate {
-        var parent: RichTextView
+    public final class Coordinator: NSObject, NSTextViewDelegate {
+        public var parent: RichTextView
 
-        init(_ parent: RichTextView) { self.parent = parent }
+        public init(_ parent: RichTextView) { self.parent = parent }
 
-        func textView(_ textView: NSTextView, clickedOnLink link: Any, at charIndex: Int) -> Bool {
+        public func textView(_ textView: NSTextView, clickedOnLink link: Any, at charIndex: Int) -> Bool {
             guard let url = link as? URL ?? (link as? String).flatMap(URL.init(string:)) else { return false }
             if let route = FeedHTML.route(from: url) {
                 parent.onLink?(route)
@@ -80,11 +89,11 @@ struct RichTextView: NSViewRepresentable {
     }
 }
 
-final class RichTextContainer: NSTextView {
-    var onLink: ((FeedLink) -> Void)?
-    var onTap: (() -> Void)?
+public final class RichTextContainer: NSTextView {
+    public var onLink: ((FeedLink) -> Void)?
+    public var onTap: (() -> Void)?
 
-    init() {
+    public init() {
         let storage = NSTextStorage()
         let layoutManager = NSLayoutManager()
         storage.addLayoutManager(layoutManager)
@@ -114,11 +123,11 @@ final class RichTextContainer: NSTextView {
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError() }
 
-    func richAttributedString() -> NSAttributedString {
+    public func richAttributedString() -> NSAttributedString {
         textStorage ?? NSAttributedString()
     }
 
-    func apply(attributed: NSAttributedString, maxLines: Int, isSelectable: Bool) {
+    public func apply(attributed: NSAttributedString, maxLines: Int, isSelectable: Bool) {
         self.isSelectable = isSelectable
         textContainer?.maximumNumberOfLines = maxLines
         textContainer?.lineBreakMode = maxLines > 0 ? .byTruncatingTail : .byWordWrapping
@@ -132,14 +141,14 @@ final class RichTextContainer: NSTextView {
         }
     }
 
-    override func setFrameSize(_ newSize: NSSize) {
+    public override func setFrameSize(_ newSize: NSSize) {
         super.setFrameSize(newSize)
         textContainer?.containerSize = NSSize(width: newSize.width, height: .greatestFiniteMagnitude)
     }
 
     /// Links stay clickable in non selectable cards: the character under the cursor is
     /// inspected for a link attribute, everything else falls through to the card action.
-    override func mouseUp(with event: NSEvent) {
+    public override func mouseUp(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
         guard isSelectable == false else {
             super.mouseUp(with: event)

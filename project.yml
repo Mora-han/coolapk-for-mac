@@ -14,6 +14,12 @@ settings:
     ALWAYS_SEARCH_USER_PATHS: NO
     DEAD_CODE_STRIPPING: YES
     ENABLE_USER_SCRIPT_SANDBOXING: NO
+packages:
+  CoolapkKit:
+    path: Packages/CoolapkKit
+  LiquidGlassUI:
+    path: Packages/LiquidGlassUI
+
 targets:
   CoolapkForMac:
     type: application
@@ -24,14 +30,11 @@ targets:
           - "Info.plist"
           - "CoolapkForMac.entitlements"
           - "Resources"
-          - "Core/Bcrypt.swift"
-          - "Core/BlowfishTables.swift"
       - path: CoolapkForMac/Resources/Emoji
         type: folder
-      - path: CoolapkForMac/Core/Bcrypt.swift
-        compilerFlags: "-O"
-      - path: CoolapkForMac/Core/BlowfishTables.swift
-        compilerFlags: "-O"
+    dependencies:
+      - package: CoolapkKit
+      - package: LiquidGlassUI
     settings:
       base:
         PRODUCT_NAME: Coolapk
