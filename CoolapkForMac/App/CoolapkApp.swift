@@ -20,8 +20,18 @@ struct CoolapkApp: App {
                     .keyboardShortcut("n", modifiers: .command)
                 Button("搜索") { store.showSearch = true }
                     .keyboardShortcut("f", modifiers: .command)
-                Button("刷新") { store.refreshBadge() }
+                Button("刷新") {
+                    store.refreshBadge()
+                    store.reloadToken.toggle()
+                }
                     .keyboardShortcut("r", modifiers: .command)
+                Divider()
+                Button("后退") { store.goBack() }
+                    .keyboardShortcut("[", modifiers: .command)
+                Button("前进") { store.goForward() }
+                    .keyboardShortcut("]", modifiers: .command)
+                Button("回到首页") { store.selection = .home }
+                    .keyboardShortcut("1", modifiers: [.command, .shift])
             }
             CommandGroup(after: .appInfo) {
                 Button("登录酷安账号…") { store.loginSheetPresented = true }

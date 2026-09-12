@@ -20,6 +20,25 @@ struct RootView: View {
                 .navigationSplitViewColumnWidth(min: 420, ideal: 700)
         }
         .toolbar {
+            ToolbarItemGroup(placement: .navigation) {
+                Button {
+                    store.goBack()
+                } label: {
+                    Image(systemName: "chevron.backward")
+                }
+                .disabled(!store.canGoBack)
+                .keyboardShortcut("[", modifiers: .command)
+                .help("后退 ⌘[")
+
+                Button {
+                    store.goForward()
+                } label: {
+                    Image(systemName: "chevron.forward")
+                }
+                .disabled(!store.canGoForward)
+                .keyboardShortcut("]", modifiers: .command)
+                .help("前进 ⌘]")
+            }
             ToolbarItemGroup(placement: .primaryAction) {
                 Button {
                     store.showCompose = true
@@ -81,6 +100,7 @@ struct RootView: View {
                 store.route(debugTarget: target)
             }
         }
+        .background(WindowTitle(title: store.currentTitle))
     }
 
     // MARK: - Sidebar

@@ -42,11 +42,32 @@ public struct ImageViewerOverlay: View {
                 .id(index)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .padding(40)
+                .overlay(alignment: .leading) {
+                    if state.images.count > 1 {
+                        arrowButton(systemImage: "chevron.left", help: "上一张") { step(-1) }
+                            .padding(.leading, 14)
+                    }
+                }
+                .overlay(alignment: .trailing) {
+                    if state.images.count > 1 {
+                        arrowButton(systemImage: "chevron.right", help: "下一张") { step(1) }
+                            .padding(.trailing, 14)
+                    }
+                }
 
             controls
         }
         .transition(.opacity)
         .onExitCommand(perform: onClose)
+        .background {
+            // 左右方向键翻页，ESC 由 onExitCommand 处理。
+            HStack {
+                Button("") { step(-1) }.keyboardShortcut(.leftArrow, modifiers: [])
+                Button("") { step(1) }.keyboardShortcut(.rightArrow, modifiers: [])
+            }
+            .opacity(0)
+            .frame(width: 0, height: 0)
+        }
         .overlay(alignment: .bottom) {
             if let savedMessage {
                 Text(savedMessage)
@@ -93,17 +114,45 @@ public struct ImageViewerOverlay: View {
                     .foregroundStyle(.white.opacity(0.9))
                 Spacer()
                 Button {
+                    zoom = max(0.4, zoom - 0.3)
+                } label: {
+                    Image(systemName: "minus.magnifyingglass")
+                }
+                .help("缩小")
+                Button {
+                    zoom = min(6, zoom + 0.3)
+                } label: {
+                    Image(systemName: "plus.magnifyingglass")
+                }
+                .help("放大")
+                Button {
+                    withAnimation(.snappy(duration: 0.2)) {
+                        zoom = 1
+                        offset = .zero
+                        dragStart = .zero
+                    }
+                } label: {
+                    Image(systemName: "arrow.counterclockwise")
+                }
+                .help("还原大小")
+                Button {
                     save()
                 } label: {
                     Image(systemName: "square.and.arrow.down")
                 }
-                .help("存储图片")
+                .help("存储到下载文件夹")
                 Button {
                     copy()
                 } label: {
                     Image(systemName: "doc.on.doc")
                 }
                 .help("复制图片")
+                Button {
+                    setAsWallpaper()
+                } label: {
+                    Image(systemName: "photo.on.rectangle.angled")
+                }
+                .help("设为桌面壁纸")
                 Button(action: onClose) {
                     Image(systemName: "xmark")
                 }
@@ -153,14 +202,61 @@ public struct ImageViewerOverlay: View {
             let link = ImageStore.normalize(currentURL)
             guard let url = URL(string: link), let (data, _) = try? await URLSession.shared.data(from: url) else { return }
             await MainActor.run {
-                let panel = NSSavePanel()
-                panel.nameFieldStringValue = url.lastPathComponent.isEmpty ? "coolapk-image.jpg" : url.lastPathComponent
-                if panel.runModal() == .OK, let target = panel.url {
-                    try? data.write(to: target)
-                    flash("已存储到 \(target.lastPathComponent)")
+                let name = url.lastPathComponent.isEmpty ? "coolapk-\(UUID().uuidString.prefix(6)).jpg" : url.lastPathComponent
+                let downloads = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first
+                    ?? FileManager.default.temporaryDirectory
+                let target = downloads.appendingPathComponent(name)
+                do {
+                    try data.write(to: target)
+                    flash("已存储到下载文件夹")
+                    NSWorkspace.shared.activateFileViewerSelecting([target])
+                } catch {
+                    flash("存储失败")
                 }
             }
         }
+    }
+
+    private func setAsWallpaper() {
+        Task {
+            let link = ImageStore.normalize(currentURL)
+            guard let url = URL(string: link), let (data, _) = try? await URLSession.shared.data(from: url) else { return }
+            await MainActor.run {
+                let target = FileManager.default.temporaryDirectory
+                    .appendingPathComponent("coolapk-wallpaper-\(UUID().uuidString.prefix(6)).jpg")
+                guard (try? data.write(to: target)) != nil else {
+                    flash("设置失败")
+                    return
+                }
+                for screen in NSScreen.screens {
+                    try? NSWorkspace.shared.setDesktopImageURL(target, for: screen, options: [:])
+                }
+                flash("已设为桌面壁纸")
+            }
+        }
+    }
+
+    private func step(_ delta: Int) {
+        let count = state.images.count
+        guard count > 1 else { return }
+        withAnimation(.snappy(duration: 0.2)) {
+            index = (index + delta + count) % count
+            zoom = 1
+            offset = .zero
+            dragStart = .zero
+        }
+    }
+
+    private func arrowButton(systemImage: String, help: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .font(.system(size: 15, weight: .semibold))
+                .frame(width: 34, height: 34)
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(.white)
+        .glassEffect(.regular.interactive(), in: .circle)
+        .help(help)
     }
 
     private func copy() {

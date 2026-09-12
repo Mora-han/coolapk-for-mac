@@ -15,6 +15,7 @@ struct ComposeSheet: View {
     @State private var uploading = false
     @State private var publishing = false
     @State private var error: String?
+    @State private var showInsertPanel = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -80,6 +81,28 @@ struct ComposeSheet: View {
                 .controlSize(.small)
                 .disabled(uploading)
 
+                Button {
+                    showInsertPanel.toggle()
+                } label: {
+                    Label("表情 / 提及 / 话题", systemImage: "face.smiling")
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .popover(isPresented: $showInsertPanel, arrowEdge: .top) {
+                    ComposerInsertPanel { text in
+                        message += text
+                    }
+                }
+
+                Button {
+                    pasteImage()
+                } label: {
+                    Label("粘贴图片", systemImage: "doc.on.clipboard")
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .help("从剪贴板读取图片")
+
                 if uploading {
                     HStack(spacing: 6) {
                         ProgressView().controlSize(.small)
@@ -103,6 +126,38 @@ struct ComposeSheet: View {
             }
         }
         .frame(width: 560, height: images.isEmpty ? 340 : 430)
+        .dropDestination(for: URL.self) { urls, _ in
+            let picked = urls.filter { $0.isFileURL }
+            guard !picked.isEmpty else { return false }
+            for url in picked where NSImage(contentsOf: url) != nil {
+                images.append(NSImage(contentsOf: url)!)
+                upload(url: url)
+            }
+            return true
+        }
+    }
+
+    private func pasteImage() {
+        let pasteboard = NSPasteboard.general
+        guard let objects = pasteboard.readObjects(forClasses: [NSImage.self], options: nil) as? [NSImage],
+              let image = objects.first else {
+            error = "剪贴板里没有图片"
+            return
+        }
+        images.append(image)
+        guard let tiff = image.tiffRepresentation,
+              let bitmap = NSBitmapImageRep(data: tiff),
+              let jpeg = bitmap.representation(using: .jpeg, properties: [.compressionFactor: 0.9]) else { return }
+        let name = "paste-\(Int(Date().timeIntervalSince1970)).jpg"
+        uploading = true
+        Task {
+            do {
+                uploaded.append(try await API.uploadImage(data: jpeg, filename: name))
+            } catch {
+                self.error = (error as? APIError)?.errorDescription ?? "图片上传失败"
+            }
+            uploading = false
+        }
     }
 
     private func pickImages() {

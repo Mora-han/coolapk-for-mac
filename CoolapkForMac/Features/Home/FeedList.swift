@@ -152,6 +152,10 @@ struct FeedListView: View {
             .scrollIndicators(.automatic)
         }
         .task { if model.isEmpty { await model.load() } }
+        .task(id: store.reloadToken) {
+            guard !model.isEmpty else { return }
+            await model.load(reset: true)
+        }
         .refreshable { await model.load(reset: true) }
         .overlay(alignment: .top) {
             if let error = model.error, model.isEmpty {

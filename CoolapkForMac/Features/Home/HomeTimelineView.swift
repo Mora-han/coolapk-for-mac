@@ -5,9 +5,10 @@ import LiquidGlassUI
 /// 首页 with the 关注 / 头条 / 热榜 … tab pills.
 struct HomeTimelineView: View {
     @Environment(AppStore.self) private var store
-    @State private var selected: String = "V9_HOME_TAB_HEADLINE"
     @State private var models: [String: FeedListModel] = [:]
     @State private var model: FeedListModel?
+
+    private var selected: String { store.homeTab }
 
     private var tabs: [HomeTab] {
         if let section = store.sidebarSections.first(where: { $0.title.contains("首页") }) ?? store.sidebarSections.first {
@@ -55,7 +56,7 @@ struct HomeTimelineView: View {
             items: tabs,
             title: \.title,
             isSelected: { $0.pageName == selected },
-            onSelect: { selected = $0.pageName }
+            onSelect: { store.homeTab = $0.pageName }
         )
     }
 

@@ -101,12 +101,26 @@ final class AppStore {
     }
 
     // Navigation
-    var selection: NavItem? = .home
+    var selection: NavItem? = .home {
+        didSet {
+            guard !suppressHistory, let value = selection, value != oldValue else { return }
+            if let previous = oldValue { history.append(previous) }
+            if history.count > 80 { history.removeFirst(history.count - 80) }
+            future.removeAll()
+        }
+    }
+    private(set) var history: [NavItem] = []
+    private(set) var future: [NavItem] = []
+    private var suppressHistory = false
     var selectedFeed: FeedItem?
     var searchText = ""
     var searching = false
     var showCompose = false
     var showSearch = false
+    /// 每次自增用于触发当前列表重新加载（⌘R）。
+    var reloadToken = false
+    /// 首页当前选中的 Tab（page name），提到 AppStore 便于快捷键与状态恢复。
+    var homeTab = "V9_HOME_TAB_HEADLINE"
     var sidebarSections: [SidebarSection] = []
     var toast: String?
     var viewer: ViewerState?
@@ -353,6 +367,56 @@ final class AppStore {
     func openFeed(id: String) async {
         if let item = try? await API.feedDetail(id: id) {
             selectedFeed = item
+        }
+    }
+
+    // MARK: - Browsing history
+
+    var canGoBack: Bool { !history.isEmpty }
+    var canGoForward: Bool { !future.isEmpty }
+
+    func goBack() {
+        guard let previous = history.popLast() else { return }
+        if let current = selection { future.append(current) }
+        suppressHistory = true
+        selection = previous
+        suppressHistory = false
+    }
+
+    func goForward() {
+        guard let next = future.popLast() else { return }
+        if let current = selection { history.append(current) }
+        suppressHistory = true
+        selection = next
+        suppressHistory = false
+    }
+
+    /// 当前页面标题，用于窗口标题与工具栏。
+    var currentTitle: String {
+        guard let selection else { return "酷安" }
+        switch selection {
+        case .home: return "酷安"
+        case .follow: return "关注"
+        case .ranking: return "热榜"
+        case let .tab(_, title): return title
+        case let .discover(_, title): return title
+        case .apps: return "应用"
+        case .games: return "游戏"
+        case .me: return "我"
+        case .notifications: return "消息"
+        case .messages: return "私信"
+        case .history: return "浏览历史"
+        case .favorites: return "我的收藏"
+        case .settings: return "设置"
+        case let .topic(tag): return "#\(tag)#"
+        case .user: return "用户主页"
+        case let .app(_, title): return title
+        case let .product(_, title): return title
+        case let .collection(_, title): return title
+        case let .dyh(_, title): return title
+        case let .question(_, title): return title
+        case let .vote(_, title): return title
+        case let .page(_, title): return title
         }
     }
 
