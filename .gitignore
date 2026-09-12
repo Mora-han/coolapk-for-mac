@@ -1,0 +1,23 @@
+# Xcode
+build/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+*.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
+*.xcodeproj/project.xcworkspace/xcuserdata/
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# xcodegen output (regenerated from project.yml)
+CoolapkForMac.xcodeproj/
+
+# macOS
+.DS_Store
+
+# SwiftPM
+.build/
+.swiftpm/
