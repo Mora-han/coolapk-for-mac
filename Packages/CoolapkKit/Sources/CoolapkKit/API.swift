@@ -182,7 +182,13 @@ public enum API {
 
         if iconCardTemplates.contains(template) {
             let links = entities.map(iconLink(from:)).filter { !$0.image.isEmpty || !$0.title.isEmpty }
-            return links.isEmpty ? [] : titled([.icons("icons-\(index)", links)])
+            if links.isEmpty { return [] }
+            // 全部没有配图时改成纵向链接列表，避免出现一排空占位图。
+            if links.allSatisfy({ $0.image.isEmpty }) {
+                let sections = links.map { HomeSection(id: $0.id, title: $0.title, subtitle: $0.subtitle, url: $0.url, style: "") }
+                return titled([.linkList("linklist-\(index)", sections)])
+            }
+            return titled([.icons("icons-\(index)", links)])
         }
 
         if linkBarTemplates.contains(template) {

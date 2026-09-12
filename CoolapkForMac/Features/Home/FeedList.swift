@@ -246,6 +246,8 @@ struct FeedRowView: View {
             SectionHeaderCard(key: key, title: title, url: url, subtitle: subtitle)
         case let .linkBar(key, links):
             LinkBarCard(key: key, links: links, width: width)
+        case let .linkList(key, links):
+            LinkListCard(key: key, links: links, width: width)
         case let .columnTabs(key, columns):
             ColumnTabsCard(key: key, columns: columns, width: width)
         case let .loginPrompt(key, title):

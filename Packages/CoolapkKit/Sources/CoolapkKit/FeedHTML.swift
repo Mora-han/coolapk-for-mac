@@ -87,8 +87,12 @@ public enum FeedHTML {
                 guard let close = html[index...].firstIndex(of: ">") else { break }
                 let rawTag = String(html[html.index(after: index)..<close])
                 index = html.index(after: close)
-                apply(tag: rawTag.lowercased(), original: rawTag, boldDepth: &boldDepth, italicDepth: &italicDepth,
-                      strikeDepth: &strikeDepth, linkURL: &linkURL, append: append, result: result, emojiSize: emojiSize, fontSize: fontSize)
+                // `apply` 只更新样式状态并返回是否需要换行；
+                // 换行必须等 inout 访问结束后再写，否则会和 `append` 里的读取冲突。
+                let needsNewline = apply(tag: rawTag.lowercased(), original: rawTag,
+                                         boldDepth: &boldDepth, italicDepth: &italicDepth,
+                                         strikeDepth: &strikeDepth, linkURL: &linkURL)
+                if needsNewline { append("\n") }
                 continue
             }
 
@@ -133,54 +137,40 @@ public enum FeedHTML {
         result.append(NSAttributedString(attachment: attachment, attributes: attrs))
     }
 
+    /// 应用一个标签，返回 `true` 表示需要在当前光标处插入换行。
     private static func apply(
         tag: String,
         original: String,
         boldDepth: inout Int,
         italicDepth: inout Int,
         strikeDepth: inout Int,
-        linkURL: inout String?,
-        append: (String) -> Void,
-        result: NSMutableAttributedString,
-        emojiSize: CGFloat?,
-        fontSize: CGFloat
-    ) {
+        linkURL: inout String?
+    ) -> Bool {
         let isClosing = tag.hasPrefix("/")
         let name = isClosing ? String(tag.dropFirst()) : String(tag.split(separator: " ").first ?? "")
         let bare = name.split(separator: " ").first.map(String.init) ?? name
 
         switch bare {
         case "br":
-            append("\n")
+            return true
         case "p", "div":
-            if isClosing { append("\n") }
+            return isClosing
         case "b", "strong":
-            boldDepth += isClosing ? -1 : 1
-            boldDepth = max(0, boldDepth)
+            boldDepth = max(0, boldDepth + (isClosing ? -1 : 1))
         case "i", "em":
-            italicDepth += isClosing ? -1 : 1
-            italicDepth = max(0, italicDepth)
+            italicDepth = max(0, italicDepth + (isClosing ? -1 : 1))
         case "strike", "s", "del":
-            strikeDepth += isClosing ? -1 : 1
-            strikeDepth = max(0, strikeDepth)
+            strikeDepth = max(0, strikeDepth + (isClosing ? -1 : 1))
         case "a":
             if isClosing {
                 linkURL = nil
             } else if let href = attribute(named: "href", in: original) {
                 linkURL = resolve(href)
             }
-        case "img":
-            if let src = attribute(named: "src", in: original), let url = URL(string: src),
-               let image = NSImage(contentsOf: url) {
-                let attachment = NSTextAttachment()
-                attachment.image = image
-                let size = emojiSize ?? (fontSize + 4)
-                attachment.bounds = CGRect(x: 0, y: -2, width: size, height: size)
-                result.append(NSAttributedString(attachment: attachment))
-            }
         default:
             break
         }
+        return false
     }
 
     private static func attribute(named name: String, in tag: String) -> String? {

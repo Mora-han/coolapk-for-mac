@@ -672,3 +672,50 @@ private struct LiveTile: View {
         }
     }
 }
+
+/// 无图标的纵向链接列表。
+struct LinkListCard: View {
+    let key: String
+    let links: [HomeSection]
+    let width: CGFloat
+
+    @Environment(AppStore.self) private var store
+    @State private var hovering: String?
+
+    var body: some View {
+        VStack(spacing: 0) {
+            ForEach(Array(links.enumerated()), id: \.element.id) { index, link in
+                Button {
+                    store.openTarget(url: link.url)
+                } label: {
+                    HStack(spacing: 10) {
+                        Text(link.title)
+                            .font(.system(size: 13))
+                            .lineLimit(1)
+                        Spacer(minLength: 8)
+                        if !link.subtitle.isEmpty {
+                            Text(link.subtitle)
+                                .font(.system(size: 11))
+                                .foregroundStyle(.tertiary)
+                                .lineLimit(1)
+                        }
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(.tertiary)
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
+                    .contentShape(Rectangle())
+                    .background(hovering == link.id ? Palette.brand.opacity(0.08) : .clear)
+                }
+                .buttonStyle(.plain)
+                .onHover { hovering = $0 ? link.id : (hovering == link.id ? nil : hovering) }
+                if index < links.count - 1 {
+                    Divider().opacity(0.4).padding(.leading, 14)
+                }
+            }
+        }
+        .frame(width: width)
+        .cardBackground(cornerRadius: 16)
+    }
+}

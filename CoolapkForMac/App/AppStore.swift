@@ -438,7 +438,26 @@ final class AppStore {
         case "vote": openVote(value)
         case "page": selection = .page(value, pageTitle(for: value))
         case "path": openTarget(url: value)
+        case "nav": selection = builtinSection(named: value)
         default: break
+        }
+    }
+
+    /// 侧边栏内置页面，供调试入口与链接解析共用。
+    func builtinSection(named name: String) -> NavItem {
+        switch name {
+        case "me", "我": return .me
+        case "settings", "设置": return .settings
+        case "notifications", "消息": return .notifications
+        case "messages", "私信": return .messages
+        case "history", "浏览历史": return .history
+        case "favorites", "我的收藏": return .favorites
+        case "apps", "应用": return .apps
+        case "games", "游戏": return .games
+        case "follow", "关注": return .follow
+        case "ranking", "热榜": return .ranking
+        case "home", "首页": return .home
+        default: return .page(name, pageTitle(for: name))
         }
     }
 

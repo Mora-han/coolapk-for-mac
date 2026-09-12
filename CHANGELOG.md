@@ -3,6 +3,14 @@
 本项目按功能拆分小版本，每个版本对应一次可回退的提交（tag 形如 v0.1.0）。
 下面是完整版本历史，最新版本排在最前。
 
+## 0.7.0 — 崩溃修复与链接列表卡
+- **修复崩溃**：`FeedHTML.attributedString` 中 `apply` 持有 `inout` 状态的同时回调 `append`，
+  触发 Swift 独占访问冲突（SIGABRT）。改为 `apply` 只返回是否需要换行，写操作延后执行。
+  该崩溃可在打开应用详情等任意富文本页面时随机触发。
+- 移除 `<img>` 标签的同步网络加载（会阻塞主线程）。
+- 新增纵向链接列表卡（`iconListCard` 内无配图时不再显示空占位图）。
+- 调试入口支持内置页面：`COOLAPK_OPEN=nav:me` / `nav:settings` / `nav:notifications` / `nav:history` 等。
+
 ## 0.6.0 — 卡片模板补全与列表修复
 - 修复首页切换 Tab 后新列表永不加载的问题（按数据源触发 `.task`，此前只有首个 Tab 有内容）。
 - 修复动态详情评论区恒为空：`listType` 取值错误（`lastupdate` → `lastupdate_desc`），

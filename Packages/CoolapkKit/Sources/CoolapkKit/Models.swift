@@ -392,6 +392,8 @@ public enum HomeFeedRow: Identifiable, Hashable {
     case sectionTitle(key: String, title: String, url: String, subtitle: String)
     /// 横向胶囊链接条（selectorLinkCard / sortSelectCard / capsuleListCard）。
     case linkBar(String, [HomeSection])
+    /// 纵向链接列表（无图标的 iconListCard / goodsList）。
+    case linkList(String, [HomeSection])
     /// 竖版子栏目切换（verticalColumnsFullPageCard）。
     case columnTabs(String, [HomeSection])
     /// 未登录提示卡。
@@ -416,6 +418,7 @@ public enum HomeFeedRow: Identifiable, Hashable {
         case let .text(key, _): return "text-\(key)"
         case let .sectionTitle(key, _, _, _): return "section-\(key)"
         case let .linkBar(key, _): return "linkbar-\(key)"
+        case let .linkList(key, _): return "linklist-\(key)"
         case let .columnTabs(key, _): return "columns-\(key)"
         case let .loginPrompt(key, _): return "login-\(key)"
         case let .notice(key, _): return "notice-\(key)"
