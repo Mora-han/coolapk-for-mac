@@ -25,6 +25,8 @@ final class FeedListModel {
         case forwards(String)
         case likes(String)
         case changeHistory(String)
+        /// 直接以 `/v6/page/dataList` 请求某个页面地址（子栏目、专题等）。
+        case rawLink(String)
     }
 
     let source: Source
@@ -87,6 +89,8 @@ final class FeedListModel {
             case let .changeHistory(id):
                 loaded = try await API.changeHistory(feedID: id)
                 finished = true
+            case let .rawLink(link):
+                loaded = try await API.linkFeed(link: link, page: page)
             }
 
             if reset { rows = [] }
@@ -96,10 +100,15 @@ final class FeedListModel {
             page += 1
             lastUpdated = Date()
             error = nil
+            DebugHooks.log("load \(source) -> \(loaded.count) rows (next page \(page))")
+        } catch is CancellationError {
+            // 切换页面导致的取消不算错误。
         } catch let apiError as APIError {
             error = apiError.errorDescription
+            DebugHooks.log("load \(source) page \(page) failed: \(apiError.errorDescription ?? "")")
         } catch {
             self.error = error.localizedDescription
+            DebugHooks.log("load \(source) page \(page) failed: \(error)")
         }
     }
 
@@ -128,6 +137,7 @@ struct FeedListView: View {
 
     var body: some View {
         GeometryReader { proxy in
+            ScrollViewReader { scroller in
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 10) {
                     if let header { header }
@@ -150,8 +160,17 @@ struct FeedListView: View {
                 .padding(.vertical, 12)
             }
             .scrollIndicators(.automatic)
+            .onChange(of: model.rows.count) { _, _ in
+                guard let index = DebugScroll.targetRow else { return }
+                guard index < model.rows.count else { return }
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    scroller.scrollTo(model.rows[index].id, anchor: .top)
+                }
+            }
+            }
         }
-        .task { if model.isEmpty { await model.load() } }
+        // 按数据源而不是视图身份触发加载：首页切换 Tab 时视图不会重建。
+        .task(id: model.source) { if model.isEmpty { await model.load() } }
         .task(id: store.reloadToken) {
             guard !model.isEmpty else { return }
             await model.load(reset: true)
@@ -223,6 +242,20 @@ struct FeedRowView: View {
             SectionScroller(key: key, sections: sections, width: width)
         case let .text(key, text):
             TextCardView(key: key, text: text, width: width)
+        case let .sectionTitle(key, title, url, subtitle):
+            SectionHeaderCard(key: key, title: title, url: url, subtitle: subtitle)
+        case let .linkBar(key, links):
+            LinkBarCard(key: key, links: links, width: width)
+        case let .columnTabs(key, columns):
+            ColumnTabsCard(key: key, columns: columns, width: width)
+        case let .loginPrompt(key, title):
+            LoginPromptCard(key: key, title: title, width: width)
+        case let .notice(key, text):
+            NoticeCard(key: key, text: text, width: width)
+        case let .goods(key, items):
+            GoodsScroller(key: key, items: items, width: width)
+        case let .lives(key, items):
+            LiveScroller(key: key, items: items, width: width)
         }
     }
 }

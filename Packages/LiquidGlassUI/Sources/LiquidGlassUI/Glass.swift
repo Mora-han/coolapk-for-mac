@@ -5,9 +5,17 @@ import SwiftUI
 
 public extension View {
     /// Liquid Glass 面板，用于浮动条、悬浮控件与需要透出背景的容器。
-    public func glassPanel(
+    ///
+    /// - Parameters:
+    ///   - cornerRadius: 圆角。
+    ///   - tint: 玻璃染色。
+    ///   - opacity: 在玻璃下方额外垫一层画布底色，用于承载文字
+    ///     （浮动输入条等），避免底层内容干扰可读性。
+    ///   - interactive: 是否启用系统的交互动效。
+    func glassPanel(
         cornerRadius: CGFloat = Metrics.cardRadius,
         tint: Color? = nil,
+        opacity: Double = 0,
         interactive: Bool = false
     ) -> some View {
         let glass: Glass = {
@@ -16,11 +24,18 @@ public extension View {
             if interactive { base = base.interactive() }
             return base
         }()
-        return glassEffect(glass, in: .rect(cornerRadius: cornerRadius))
+        return self
+            .background {
+                if opacity > 0 {
+                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                        .fill(Palette.canvas.opacity(opacity))
+                }
+            }
+            .glassEffect(glass, in: .rect(cornerRadius: cornerRadius))
     }
 
     /// 更轻薄的玻璃，适合叠在内容之上的小徽标。
-    public func glassChip(cornerRadius: CGFloat = 10, tint: Color? = nil) -> some View {
+    func glassChip(cornerRadius: CGFloat = 10, tint: Color? = nil) -> some View {
         let glass: Glass = {
             var base: Glass = .clear
             if let tint { base = base.tint(tint) }
@@ -30,7 +45,7 @@ public extension View {
     }
 
     /// 悬浮抬升效果：轻微放大 + 阴影，用于卡片 hover。
-    public func hoverLift(_ hovering: Bool, scale: CGFloat = 1.006) -> some View {
+    func hoverLift(_ hovering: Bool, scale: CGFloat = 1.006) -> some View {
         scaleEffect(hovering ? scale : 1)
             .shadow(color: .black.opacity(hovering ? 0.14 : 0), radius: hovering ? 10 : 0, y: hovering ? 3 : 0)
             .animation(.snappy(duration: 0.18), value: hovering)

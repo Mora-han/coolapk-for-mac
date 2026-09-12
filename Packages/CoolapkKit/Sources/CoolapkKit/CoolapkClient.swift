@@ -154,6 +154,10 @@ public actor CoolapkClient {
             return data
         } catch let error as APIError {
             throw error
+        } catch let error as URLError where error.code == .cancelled {
+            throw CancellationError()
+        } catch let error as NSError where error.domain == NSURLErrorDomain && error.code == NSURLErrorCancelled {
+            throw CancellationError()
         } catch {
             throw APIError.network(error.localizedDescription)
         }

@@ -388,6 +388,20 @@ public enum HomeFeedRow: Identifiable, Hashable {
     case icons(String, [HomeIconLink])
     case sections(String, [HomeSection])
     case text(String, String)
+    /// 分节标题，可带「更多」入口。
+    case sectionTitle(key: String, title: String, url: String, subtitle: String)
+    /// 横向胶囊链接条（selectorLinkCard / sortSelectCard / capsuleListCard）。
+    case linkBar(String, [HomeSection])
+    /// 竖版子栏目切换（verticalColumnsFullPageCard）。
+    case columnTabs(String, [HomeSection])
+    /// 未登录提示卡。
+    case loginPrompt(String, String)
+    /// 纯说明文字卡（messageCard）。
+    case notice(String, String)
+    /// 横向商品（酷品 / 京东联盟商品）。
+    case goods(String, [PearGoods])
+    /// 横向直播。
+    case lives(String, [LiveTopic])
 
     public var id: String {
         switch self {
@@ -400,7 +414,78 @@ public enum HomeFeedRow: Identifiable, Hashable {
         case let .icons(key, _): return "icons-\(key)"
         case let .sections(key, _): return "sections-\(key)"
         case let .text(key, _): return "text-\(key)"
+        case let .sectionTitle(key, _, _, _): return "section-\(key)"
+        case let .linkBar(key, _): return "linkbar-\(key)"
+        case let .columnTabs(key, _): return "columns-\(key)"
+        case let .loginPrompt(key, _): return "login-\(key)"
+        case let .notice(key, _): return "notice-\(key)"
+        case let .goods(key, _): return "goods-\(key)"
+        case let .lives(key, _): return "lives-\(key)"
         }
+    }
+}
+
+// MARK: - 电商与直播
+
+/// 酷品 / 京东联盟商品。
+public struct PearGoods: Identifiable, Hashable {
+    public let id: String
+    public var title = ""
+    public var image = ""
+    public var price = ""
+    public var promoTitle = ""
+    public var mall = ""
+    public var category = ""
+    public var buyText = ""
+    public var buyURL = ""
+    public var detailURL = ""
+    public var raw: JSON = .null
+
+    public init(json: JSON) {
+        self.raw = json
+        let union = json.union_item_id.string
+        let rawID = json.id.identifier
+        self.id = !union.isEmpty ? union : (rawID.isEmpty ? json.title.string : rawID)
+        self.title = json.title.string.isEmpty ? json.goods_title.string : json.title.string
+        self.image = json.goods_pic.string
+        let priceValue = json.goods_promo_price.double
+        self.price = priceValue > 0 ? String(format: "¥%.2f", priceValue) : ""
+        self.promoTitle = json.goods_promo_title.string
+        self.mall = json.mall_title.string
+        self.category = json.category_title.string
+        self.buyText = json.goods_buy_text.string
+        self.buyURL = json.goods_buy_url.string.isEmpty ? json.goods_url.string : json.goods_buy_url.string
+        self.detailURL = json.goods_url.string
+    }
+}
+
+/// 直播条目（`liveTopic`）。
+public struct LiveTopic: Identifiable, Hashable {
+    public let id: String
+    public var title = ""
+    public var summary = ""
+    public var cover = ""
+    public var startAt: Date?
+    public var presenterUID = ""
+    public var raw: JSON = .null
+
+    public init(json: JSON) {
+        self.raw = json
+        self.id = json.id.identifier
+        self.title = json.title.string
+        self.summary = json.description.string
+        self.cover = json.pic_url.string
+        let stamp = json.live_time.double
+        self.startAt = stamp > 0 ? Date(timeIntervalSince1970: stamp) : nil
+        self.presenterUID = json.presenter_uid.string
+    }
+
+    public var timeText: String {
+        guard let startAt else { return "" }
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "zh_CN")
+        formatter.dateFormat = "M月d日 HH:mm"
+        return formatter.string(from: startAt)
     }
 }
 

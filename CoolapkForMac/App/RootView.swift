@@ -92,6 +92,7 @@ struct RootView: View {
         .animation(.snappy(duration: 0.22), value: store.toast)
         .task {
             await loadTabs()
+            if let tab = DebugHooks.homeTab { store.homeTab = tab }
             store.refreshBadge()
             if let id = ProcessInfo.processInfo.environment["COOLAPK_OPEN_FEED"], !id.isEmpty {
                 await store.openFeed(id: id)

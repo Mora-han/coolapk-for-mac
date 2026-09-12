@@ -47,10 +47,11 @@ struct FeedDetailView: View {
     }
 
     var body: some View {
+        ScrollViewReader { scroller in
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
                 main
-                replySection
+                replySection.id("replies")
             }
             .frame(maxWidth: min(760, store.contentWidth + 140))
             .frame(maxWidth: .infinity)
@@ -58,7 +59,13 @@ struct FeedDetailView: View {
             .padding(.vertical, 14)
         }
         .scrollContentBackground(.hidden)
+        .scrollEdgeEffectStyle(.soft, for: [.top, .bottom])
         .safeAreaInset(edge: .bottom) { composer }
+        .onChange(of: replies.count) { _, _ in
+            guard DebugScroll.scrollsToReplies else { return }
+            withAnimation(.easeInOut(duration: 0.25)) { scroller.scrollTo("replies", anchor: .top) }
+        }
+        }
         .task {
             await loadDetail()
             await loadReplies(reset: true)
@@ -390,9 +397,11 @@ struct FeedDetailView: View {
             }
             .padding(10)
         }
-        .glassPanel(cornerRadius: 16)
+        .glassPanel(cornerRadius: 16, opacity: 0.62)
         .padding(.horizontal, 18)
+        .padding(.top, 8)
         .padding(.bottom, 12)
+        .floatingBarBackdrop()
     }
 
     private func send() {

@@ -311,3 +311,364 @@ struct UserCardView: View {
         .onAppear { followed = user.isFollowed }
     }
 }
+
+// MARK: - 分节标题
+
+/// `titleCard` 等分节标题，右侧带「更多」入口。
+struct SectionHeaderCard: View {
+    let key: String
+    let title: String
+    let url: String
+    let subtitle: String
+
+    @Environment(AppStore.self) private var store
+    @State private var hovering = false
+
+    var body: some View {
+        Button {
+            if !url.isEmpty { store.openTarget(url: url) }
+        } label: {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(Palette.brand)
+                    .frame(width: 3, height: 15)
+                Text(title)
+                    .font(.system(size: 15, weight: .semibold))
+                if !subtitle.isEmpty {
+                    Text(subtitle)
+                        .font(.system(size: 11.5))
+                        .foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 8)
+                if !url.isEmpty {
+                    HStack(spacing: 2) {
+                        Text("更多")
+                        Image(systemName: "chevron.right").font(.system(size: 10, weight: .semibold))
+                    }
+                    .font(.system(size: 12))
+                    .foregroundStyle(hovering ? Palette.brand : Color.secondary)
+                }
+            }
+            .padding(.horizontal, 4)
+            .padding(.vertical, 2)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(url.isEmpty)
+        .onHover { hovering = $0 }
+    }
+}
+
+// MARK: - 胶囊链接条
+
+/// `selectorLinkCard` / `sortSelectCard` / `capsuleListCard`：一排可点击的胶囊。
+struct LinkBarCard: View {
+    let key: String
+    let links: [HomeSection]
+    let width: CGFloat
+
+    @Environment(AppStore.self) private var store
+
+    @State private var selected: String?
+
+    var body: some View {
+        ScrollView(.horizontal) {
+            GlassEffectContainer(spacing: 6) {
+                HStack(spacing: 6) {
+                    ForEach(links) { link in
+                        let active = selected == link.id
+                        Button {
+                            selected = link.id
+                            store.openTarget(url: link.url)
+                        } label: {
+                            HStack(spacing: 5) {
+                                Text(link.title)
+                                    .font(.system(size: 12.5, weight: active ? .semibold : .regular))
+                                if !link.subtitle.isEmpty, link.subtitle != link.title {
+                                    Text(link.subtitle)
+                                        .font(.system(size: 10.5))
+                                        .foregroundStyle(.tertiary)
+                                }
+                            }
+                            .padding(.horizontal, 11)
+                            .padding(.vertical, 5)
+                            .foregroundStyle(active ? Palette.brand : Color.primary)
+                            .contentShape(Capsule())
+                        }
+                        .buttonStyle(.plain)
+                        .glassEffect(.clear.interactive(), in: .capsule)
+                    }
+                }
+                .padding(.horizontal, 4)
+                .padding(.vertical, 6)
+            }
+        }
+        .scrollIndicators(.hidden)
+        .frame(width: width, alignment: .leading)
+    }
+}
+
+// MARK: - 竖版子栏目
+
+/// `verticalColumnsFullPageCard`：话题等页面的子栏目切换。
+struct ColumnTabsCard: View {
+    let key: String
+    let columns: [HomeSection]
+    let width: CGFloat
+
+    @Environment(AppStore.self) private var store
+    @State private var current: String?
+
+    private var active: HomeSection? {
+        if let current, let match = columns.first(where: { $0.id == current }) { return match }
+        return columns.first
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            GlassPillBar(
+                items: columns,
+                title: \.title,
+                isSelected: { $0.id == (active?.id ?? "") },
+                onSelect: { current = $0.id }
+            )
+            if let active, !active.url.isEmpty {
+                ColumnPageList(url: active.url)
+                    .id(active.id)
+            }
+        }
+        .frame(width: width, alignment: .leading)
+    }
+}
+
+/// 子栏目对应的动态列表，复用统一的加载模型。
+struct ColumnPageList: View {
+    let url: String
+
+    @State private var model: FeedListModel?
+
+    var body: some View {
+        Group {
+            if let model {
+                FeedListView(model: model)
+                    .frame(height: 520)
+            } else {
+                LoadingRow()
+                    .frame(height: 220)
+            }
+        }
+        .task(id: url) {
+            let created = makeModel()
+            model = created
+        }
+    }
+
+    private func makeModel() -> FeedListModel {
+        let pageName = ColumnPageList.pageName(from: url)
+        if pageName.hasPrefix("/") || pageName.contains("?") {
+            return FeedListModel(source: .rawLink(pageName))
+        }
+        return FeedListModel(source: .page(pageName, nil))
+    }
+
+    /// 从 `#/topic/tagList?keywords=热门…` / `/page?url=V11_XXX` 里取出可请求的地址。
+    static func pageName(from url: String) -> String {
+        var value = url
+        if let range = value.range(of: "url=") {
+            value = String(value[range.upperBound...])
+            if let amp = value.firstIndex(of: "&") { value = String(value[..<amp]) }
+        }
+        if value.hasPrefix("/page?") { return value }
+        if value.hasPrefix("#") { value.removeFirst() }
+        return value
+    }
+}
+
+// MARK: - 提示类卡片
+
+/// `unLoginCard`：未登录引导。
+struct LoginPromptCard: View {
+    let key: String
+    let title: String
+    let width: CGFloat
+
+    @Environment(AppStore.self) private var store
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "person.crop.circle.badge.checkmark")
+                .font(.system(size: 22))
+                .foregroundStyle(Palette.brand)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(.system(size: 13.5, weight: .semibold))
+                Text("登录后即可看到关注的人发布的动态")
+                    .font(.system(size: 11.5))
+                    .foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 8)
+            Button("登录") { store.loginSheetPresented = true }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+                .tint(Palette.brand)
+        }
+        .padding(14)
+        .frame(width: width)
+        .glassPanel(cornerRadius: 16)
+    }
+}
+
+/// `messageCard`：纯说明文字（支持富文本链接）。
+struct NoticeCard: View {
+    let key: String
+    let text: String
+    let width: CGFloat
+
+    @Environment(AppStore.self) private var store
+
+    var body: some View {
+        RichTextView(
+            attributed: FeedHTML.cachedAttributedString(html: text, fontSize: 12.5, color: .secondaryLabelColor),
+            isSelectable: true,
+            onLink: { store.handle(link: $0) }
+        )
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .frame(width: width, alignment: .leading)
+        .cardBackground(cornerRadius: 14)
+    }
+}
+
+// MARK: - 酷品 / 直播
+
+/// 横向商品卡片（酷品、京东联盟等）。
+struct GoodsScroller: View {
+    let key: String
+    let items: [PearGoods]
+    let width: CGFloat
+
+    @Environment(AppStore.self) private var store
+    @State private var hovering: String?
+
+    var body: some View {
+        ScrollView(.horizontal) {
+            HStack(spacing: 10) {
+                ForEach(items) { item in
+                    Button {
+                        if !item.buyURL.isEmpty {
+                            NSWorkspace.shared.open(URL(string: item.buyURL)!)
+                        } else if !item.detailURL.isEmpty {
+                            store.openTarget(url: item.detailURL)
+                        }
+                    } label: {
+                        VStack(alignment: .leading, spacing: 6) {
+                            RemoteImage(url: item.image, maxPixel: 480, contentMode: .fill, cornerRadius: 12)
+                                .frame(width: 168, height: 168)
+                                .clipped()
+                            Text(item.title)
+                                .font(.system(size: 12))
+                                .lineLimit(2)
+                                .multilineTextAlignment(.leading)
+                                .frame(height: 32, alignment: .top)
+                            if !item.price.isEmpty {
+                                Text(item.price)
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundStyle(Palette.like)
+                            }
+                            HStack(spacing: 4) {
+                                Text(item.mall)
+                                Text(item.promoTitle)
+                            }
+                            .font(.system(size: 10.5))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                        }
+                        .frame(width: 168, alignment: .leading)
+                        .padding(10)
+                        .cardBackground(cornerRadius: 14)
+                        .hoverLift(hovering == item.id)
+                    }
+                    .buttonStyle(.plain)
+                    .onHover { hovering = $0 ? item.id : (hovering == item.id ? nil : hovering) }
+                }
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+        }
+        .scrollIndicators(.hidden)
+        .frame(width: width, alignment: .leading)
+    }
+}
+
+/// 直播预告卡片。
+struct LiveScroller: View {
+    let key: String
+    let items: [LiveTopic]
+    let width: CGFloat
+
+    @State private var hovering: String?
+
+    var body: some View {
+        ScrollView(.horizontal) {
+            HStack(spacing: 10) {
+                ForEach(items) { item in
+                    LiveTile(item: item, hovering: hovering == item.id)
+                        .onHover { hovering = $0 ? item.id : (hovering == item.id ? nil : hovering) }
+                }
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+        }
+        .scrollIndicators(.hidden)
+        .frame(width: width, alignment: .leading)
+    }
+}
+
+private struct LiveTile: View {
+    let item: LiveTopic
+    let hovering: Bool
+
+    @Environment(AppStore.self) private var store
+
+    var body: some View {
+        Button {
+            store.openUser(item.presenterUID)
+        } label: {
+            VStack(alignment: .leading, spacing: 6) {
+                cover
+                Text(item.title)
+                    .font(.system(size: 12.5, weight: .medium))
+                    .lineLimit(1)
+                if !item.summary.isEmpty {
+                    Text(item.summary)
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+            }
+            .frame(width: 236, alignment: .leading)
+            .hoverLift(hovering)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var cover: some View {
+        RemoteImage(url: item.cover, maxPixel: 700, contentMode: .fill, cornerRadius: 12)
+            .frame(width: 236, height: 133)
+            .clipped()
+            .overlay(alignment: .bottomLeading) { timeBadge }
+    }
+
+    @ViewBuilder
+    private var timeBadge: some View {
+        if !item.timeText.isEmpty {
+            Text(item.timeText)
+                .font(.system(size: 10.5, weight: .medium))
+                .padding(.horizontal, 7)
+                .padding(.vertical, 3)
+                .foregroundStyle(.white)
+                .background(.black.opacity(0.45), in: Capsule())
+                .padding(8)
+        }
+    }
+}

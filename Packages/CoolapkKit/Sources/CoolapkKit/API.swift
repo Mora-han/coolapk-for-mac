@@ -43,13 +43,82 @@ public enum API {
         return try rows(from: items)
     }
 
+    /// 需要忽略的卡片模板：页面元数据、广告与埋点卡片。
+    private static let ignoredCardTemplates: Set<String> = [
+        "configCard", "sponsorCard", "sponsorArticleNews", "fabCard",
+        "ratingNodeUserEnv", "adCard", "staticsCard",
+    ]
+
+    /// 图标网格族的模板名，统一渲染成九宫格 / 横滑图标。
+    private static let iconCardTemplates: Set<String> = [
+        "iconLinkGridCard", "iconMiniScrollCard", "iconListCard", "iconGridCard",
+        "iconMiniGridCard", "iconMiniLinkGridCard", "iconLongTitleGridCard",
+        "iconButtonGridCard", "iconLargeScrollCard", "imageSquareScrollCard",
+    ]
+
+    /// 胶囊链接条族的模板名。
+    private static let linkBarTemplates: Set<String> = [
+        "selectorLinkCard", "sortSelectCard", "capsuleListCard", "colorfulScrollCard",
+    ]
+
+    /// 把一个原始条目数组转换成可以直接渲染的行。
+    /// 按页面地址拉取列表，地址可能形如 `/page?url=V11_XXX` 或 `#/topic/tagList?…`。
+    public static func linkFeed(link: String, page: Int) async throws -> [HomeFeedRow] {
+        var target = link
+        if let range = target.range(of: "url=") {
+            target = String(target[range.upperBound...])
+            if let amp = target.firstIndex(of: "&") { target = String(target[..<amp]) }
+        }
+        target = target.replacingOccurrences(of: "#", with: "")
+        if target.hasPrefix("/page?") {
+            let items = try await client.get(target, ["page": String(page)]).data.array
+            return try rows(from: items)
+        }
+        let items = try await client.dataList(url: target, page: page)
+        return try rows(from: items)
+    }
+
     public static func rows(from items: [JSON]) throws -> [HomeFeedRow] {
         var rows: [HomeFeedRow] = []
+        // 连续的同类商品 / 直播合并成一条横滑，避免每张卡片各占一行。
+        var pendingGoods: [PearGoods] = []
+        var pendingLives: [LiveTopic] = []
+
+        func flushGoods() {
+            guard !pendingGoods.isEmpty else { return }
+            rows.append(.goods("goods-\(rows.count)", pendingGoods))
+            pendingGoods = []
+        }
+
+        func flushLives() {
+            guard !pendingLives.isEmpty else { return }
+            rows.append(.lives("lives-\(rows.count)", pendingLives))
+            pendingLives = []
+        }
+
+        func flushAll() {
+            flushGoods()
+            flushLives()
+        }
+
         for (index, item) in items.enumerated() {
             let template = item.entityTemplate.string
-            let type = item.entityType.string
-            switch type {
-            case "feed":
+            switch item.entityType.string {
+            case "pear_goods":
+                flushLives()
+                pendingGoods.append(PearGoods(json: item))
+                continue
+            case "liveTopic":
+                flushGoods()
+                pendingLives.append(LiveTopic(json: item))
+                continue
+            default:
+                break
+            }
+
+            flushAll()
+            switch item.entityType.string {
+            case "feed", "feed_reply", "reply":
                 rows.append(.feed(FeedItem(json: item)))
             case "product":
                 rows.append(.product(ProductItem(json: item)))
@@ -60,45 +129,142 @@ public enum API {
             case "apk":
                 rows.append(.app(AppItem(json: item)))
             case "card":
-                switch template {
-                case "imageCarouselCard_1":
-                    let banners = item.entities.array.map { entity in
-                        HomeBanner(id: "\(entity.entityId.identifier)-\(entity.title.string)",
-                                   title: entity.title.string,
-                                   subtitle: entity.sub_title.string,
-                                   image: entity.pic.string,
-                                   url: entity.url.string)
-                    }
-                    if !banners.isEmpty { rows.append(.banners("banner-\(index)", banners)) }
-                case "iconLinkGridCard", "iconMiniScrollCard", "iconListCard":
-                    let links = item.entities.array.map { entity in
-                        HomeIconLink(id: "\(entity.entityId.identifier)-\(entity.title.string)",
-                                     title: entity.title.string,
-                                     image: entity.logo.string.isEmpty ? entity.pic.string : entity.logo.string,
-                                     url: entity.url.string,
-                                     subtitle: entity.sub_title.string.isEmpty ? entity.description.string : entity.sub_title.string)
-                    }
-                    if !links.isEmpty { rows.append(.icons("icons-\(index)", links)) }
-                case "imageTextScrollCard":
-                    let sections = item.entities.array.map { entity in
-                        HomeSection(id: "\(entity.entityId.identifier)-\(entity.title.string)",
-                                    title: entity.title.string,
-                                    subtitle: entity.sub_title.string.isEmpty ? entity.description.string : entity.sub_title.string,
-                                    url: entity.url.string,
-                                    style: entity.pic.string)
-                    }
-                    if !sections.isEmpty { rows.append(.sections("sections-\(index)", sections)) }
-                default:
-                    let text = item.title.string
-                    if !text.isEmpty, item.entities.array.isEmpty {
-                        rows.append(.text("text-\(index)", text))
-                    }
-                }
+                rows.append(contentsOf: cardRows(item, template: template, index: index))
             default:
                 continue
             }
         }
+        flushAll()
         return rows
+    }
+
+    /// 单张卡片的解析；空数组表示这张卡片不产生可见内容。
+    private static func cardRows(_ item: JSON, template: String, index: Int) -> [HomeFeedRow] {
+        if ignoredCardTemplates.contains(template) { return [] }
+
+        let entities = item.entities.array
+        let title = item.title.string
+        let moreURL = item.url.string
+
+        /// 在内容前插入一个分节标题。
+        func titled(_ rows: [HomeFeedRow]) -> [HomeFeedRow] {
+            guard !title.isEmpty else { return rows }
+            return [.sectionTitle(key: "\(index)", title: title, url: moreURL, subtitle: "")] + rows
+        }
+
+        // 商品类卡片：内部直接放商品时优先按商品渲染。
+        if !entities.isEmpty, entities.allSatisfy({ $0.entityType.string == "pear_goods" }) {
+            return titled([.goods("goods-\(index)", entities.map { PearGoods(json: $0) })])
+        }
+
+        // 含 logo 与价格字段的榜单实体（listCard / productTimelineListCard）。
+        if template == "listCard" || template == "productTimelineListCard" {
+            let products = entities
+                .filter { !$0.logo.string.isEmpty || $0.price_min.exists }
+                .map { ProductItem(json: $0) }
+            if let only = products.first, products.count == 1 { return titled([.product(only)]) }
+            if !products.isEmpty { return titled(products.prefix(8).map { HomeFeedRow.product($0) }) }
+        }
+
+        // 纯图片按钮卡（京东等广告位）按横幅渲染。
+        if template == "iconButtonGridCard" {
+            let banners = entities.compactMap { entity -> HomeBanner? in
+                let image = entity.pic.string
+                guard !image.isEmpty else { return nil }
+                return HomeBanner(id: "\(entity.entityId.identifier)-\(index)",
+                                  title: entity.title.string,
+                                  subtitle: "",
+                                  image: image,
+                                  url: entity.url.string)
+            }
+            if !banners.isEmpty { return [.banners("banner-\(index)", banners)] }
+        }
+
+        if iconCardTemplates.contains(template) {
+            let links = entities.map(iconLink(from:)).filter { !$0.image.isEmpty || !$0.title.isEmpty }
+            return links.isEmpty ? [] : titled([.icons("icons-\(index)", links)])
+        }
+
+        if linkBarTemplates.contains(template) {
+            let links = entities
+                .map { entity in
+                    HomeSection(id: "\(entity.entityId.identifier)-\(entity.title.string)",
+                                title: entity.title.string,
+                                subtitle: entity.sub_title.string.isEmpty ? entity.description.string : entity.sub_title.string,
+                                url: entity.url.string,
+                                style: entity.pic.string)
+                }
+                .filter { !$0.title.isEmpty }
+            return links.isEmpty ? [] : titled([.linkBar("linkbar-\(index)", links)])
+        }
+
+        switch template {
+        case "imageCarouselCard_1", "imageCarouselCard_2", "imageCarouselCard":
+            let banners = entities.compactMap { entity -> HomeBanner? in
+                let image = entity.pic.string
+                guard !image.isEmpty else { return nil }
+                return HomeBanner(id: "\(entity.entityId.identifier)-\(entity.title.string)",
+                                  title: entity.title.string.isEmpty ? entity.description.string : entity.title.string,
+                                  subtitle: entity.sub_title.string,
+                                  image: image,
+                                  url: entity.url.string)
+            }
+            return banners.isEmpty ? [] : [.banners("banner-\(index)", banners)]
+
+        case "imageTextScrollCard":
+            let sections = entities.map { entity in
+                HomeSection(id: "\(entity.entityId.identifier)-\(entity.title.string)",
+                            title: entity.title.string,
+                            subtitle: entity.sub_title.string.isEmpty ? entity.description.string : entity.sub_title.string,
+                            url: entity.url.string,
+                            style: entity.pic.string)
+            }
+            return sections.isEmpty ? [] : [.sections("sections-\(index)", sections)]
+
+        case "verticalColumnsFullPageCard":
+            let columns = entities
+                .map { entity in
+                    HomeSection(id: "\(entity.entityId.identifier)-\(entity.title.string)",
+                                title: entity.title.string,
+                                subtitle: entity.sub_title.string,
+                                url: entity.url.string,
+                                style: entity.pic.string)
+                }
+                .filter { !$0.title.isEmpty }
+            return columns.isEmpty ? [] : [.columnTabs("columns-\(index)", columns)]
+
+        case "titleCard":
+            return title.isEmpty ? [] : [.sectionTitle(key: "\(index)", title: title, url: moreURL, subtitle: "")]
+
+        case "unLoginCard":
+            return [.loginPrompt("\(index)", title.isEmpty ? "更多精彩内容请登录" : title)]
+
+        case "messageCard":
+            let text = item.description.string
+            return text.isEmpty ? [] : [.notice("\(index)", text)]
+
+        case "feedListCard":
+            // 卡片内部直接内嵌单条动态时整条渲染，其余交给「更多」入口。
+            if entities.count == 1, let entity = entities.first {
+                return [.feed(FeedItem(json: entity))]
+            }
+            return title.isEmpty ? [] : [.sectionTitle(key: "\(index)", title: title, url: moreURL, subtitle: "")]
+
+        default:
+            // 兜底：带图实体当成图标网格，纯标题当成文字卡。
+            let links = entities.map(iconLink(from:)).filter { !$0.image.isEmpty }
+            if !links.isEmpty { return titled([.icons("icons-\(index)", links)]) }
+            if !title.isEmpty, entities.isEmpty { return [.text("text-\(index)", title)] }
+        }
+        return []
+    }
+
+    private static func iconLink(from entity: JSON) -> HomeIconLink {
+        HomeIconLink(id: "\(entity.entityId.identifier)-\(entity.title.string)",
+                     title: entity.title.string,
+                     image: entity.logo.string.isEmpty ? entity.pic.string : entity.logo.string,
+                     url: entity.url.string,
+                     subtitle: entity.sub_title.string.isEmpty ? entity.description.string : entity.sub_title.string)
     }
 
     // MARK: - Feed detail
@@ -108,7 +274,9 @@ public enum API {
         return FeedItem(json: json.data)
     }
 
-    public static func replies(feedID: String, page: Int, listType: String = "lastupdate", authorOnly: Bool = false) async throws -> [ReplyItem] {
+    /// 排序取值必须为 `lastupdate_desc` / `dateline_desc` / `popular`，
+    /// 传 `lastupdate` 时服务端会直接返回空数组。
+    public static func replies(feedID: String, page: Int, listType: String = "lastupdate_desc", authorOnly: Bool = false) async throws -> [ReplyItem] {
         let json = try await client.get("/v6/feed/replyList", [
             "id": feedID,
             "listType": listType,
@@ -121,9 +289,9 @@ public enum API {
         return json.data.array.map { ReplyItem(json: $0) }
     }
 
+    /// 热门评论走 `replyList` 的 `popular` 排序；`/v6/feed/hotReplyList` 服务端已失效。
     public static func hotReplies(feedID: String, page: Int) async throws -> [ReplyItem] {
-        let json = try await client.get("/v6/feed/hotReplyList", ["id": feedID, "page": String(page), "discussMode": "1"])
-        return json.data.array.map { ReplyItem(json: $0) }
+        try await replies(feedID: feedID, page: page, listType: "popular")
     }
 
     public static func subReplies(replyID: String, page: Int) async throws -> [ReplyItem] {

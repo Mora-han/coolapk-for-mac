@@ -9,6 +9,8 @@ public enum Palette {
     public static let like = Color(red: 0.98, green: 0.28, blue: 0.36)
     public static let star = Color(red: 1.0, green: 0.72, blue: 0.18)
     public static let cardBackground = Color(nsColor: .controlBackgroundColor)
+    /// 窗口级背景色，用作渐隐遮罩与画布底色。
+    public static let canvas = Color(nsColor: .windowBackgroundColor)
     public static let separator = Color(nsColor: .separatorColor)
     public static let hairline = Color.primary.opacity(0.06)
     public static let fill = Color.primary.opacity(0.05)
@@ -46,7 +48,7 @@ public func relativeTime(_ date: Date?) -> String {
 
 public extension View {
     /// 统一的卡片底色（不使用玻璃，避免长列表滚动掉帧）。
-    public func cardBackground(cornerRadius: CGFloat = Metrics.cardRadius) -> some View {
+    func cardBackground(cornerRadius: CGFloat = Metrics.cardRadius) -> some View {
         background(
             RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                 .fill(Palette.cardBackground)
@@ -57,8 +59,28 @@ public extension View {
         )
     }
 
+    /// 浮动工具条背后的渐隐遮罩。
+    ///
+    /// 滚动内容靠近底部时会自然淡出，避免和玻璃条直接重叠产生视觉噪声，
+    /// 同时保留玻璃的通透感。
+    func floatingBarBackdrop(height: CGFloat = 108) -> some View {
+        background(alignment: .bottom) {
+            LinearGradient(
+                stops: [
+                    .init(color: Palette.canvas.opacity(0), location: 0),
+                    .init(color: Palette.canvas.opacity(0.82), location: 0.5),
+                    .init(color: Palette.canvas.opacity(0.97), location: 1),
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .frame(height: height)
+            .allowsHitTesting(false)
+        }
+    }
+
     /// 统一的阅读宽度约束。
-    public func readingWidth(_ contentWidth: CGFloat, extra: CGFloat = 140) -> some View {
+    func readingWidth(_ contentWidth: CGFloat, extra: CGFloat = 140) -> some View {
         frame(maxWidth: min(Metrics.maxReadingWidth, contentWidth + extra))
             .frame(maxWidth: .infinity)
     }
