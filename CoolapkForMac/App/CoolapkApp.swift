@@ -9,10 +9,10 @@ struct CoolapkApp: App {
         WindowGroup {
             RootView()
                 .environment(store)
-                .frame(minWidth: 1080, minHeight: 700)
+                .frame(minWidth: 940, minHeight: 640)
                 .preferredColorScheme(store.appearance.colorScheme)
         }
-        .defaultSize(width: 1360, height: 880)
+        .defaultSize(width: 1408, height: 872)
         .windowToolbarStyle(.unified(showsTitle: true))
         .commands {
             CommandGroup(replacing: .newItem) {

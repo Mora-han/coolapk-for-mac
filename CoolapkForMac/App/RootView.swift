@@ -14,10 +14,10 @@ struct RootView: View {
             sidebar
         } content: {
             contentColumn
-                .navigationSplitViewColumnWidth(min: 420, ideal: 620)
+                .navigationSplitViewColumnWidth(min: 360, ideal: 520)
         } detail: {
             detailColumn
-                .navigationSplitViewColumnWidth(min: 420, ideal: 700)
+                .navigationSplitViewColumnWidth(min: 380, ideal: 620)
         }
         .toolbar {
             ToolbarItemGroup(placement: .navigation) {
@@ -140,7 +140,7 @@ struct RootView: View {
             }
         }
         .listStyle(.sidebar)
-        .navigationSplitViewColumnWidth(min: 200, ideal: 216, max: 260)
+        .navigationSplitViewColumnWidth(min: 186, ideal: 202, max: 250)
     }
 
     private func row(_ item: NavItem, icon: String, badge: Int = 0) -> some View {

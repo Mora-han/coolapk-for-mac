@@ -70,6 +70,8 @@ struct UserView: View {
                     HStack(spacing: 6) {
                         Text(profile?.username ?? "加载中…")
                             .font(.system(size: 17, weight: .semibold))
+                            .lineLimit(1)
+                            .truncationMode(.tail)
                         if let verify = profile?.verifyLabel, !verify.isEmpty {
                             TagChip(text: verify, systemImage: "checkmark.seal.fill", tint: Palette.brand)
                         }
@@ -82,11 +84,13 @@ struct UserView: View {
                             Text(FeedHTML.plainText(profile.bio))
                                 .font(.system(size: 12.5))
                                 .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
                                 .textSelection(.enabled)
                         }
                     }
                 }
-                Spacer(minLength: 0)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .layoutPriority(1)
                 actions
             }
             .padding(.horizontal, 4)
@@ -112,30 +116,29 @@ struct UserView: View {
     private var actions: some View {
         HStack(spacing: 8) {
             if let profile {
-                Button {
+                GlassActionButton(
+                    title: profile.isFollowed ? "已关注" : "关注",
+                    systemImage: profile.isFollowed ? "checkmark" : "plus",
+                    prominent: !profile.isFollowed,
+                    minWidth: 52
+                ) {
                     store.toggleFollow(user: profile) { updated in
                         self.profile = updated
                     }
-                } label: {
-                    Text(profile.isFollowed ? "已关注" : "关注")
-                        .font(.system(size: 12.5, weight: .medium))
-                        .frame(width: 62)
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(profile.isFollowed ? Color.secondary.opacity(0.4) : Palette.brand)
-                .controlSize(.regular)
-
-                Button {
+                GlassIconButton(systemImage: "bubble.left.and.text.bubble.right", help: "在网页版发私信") {
                     if let url = URL(string: "https://www.coolapk.com/u/\(uid)") {
                         NSWorkspace.shared.open(url)
                     }
-                } label: {
-                    Text("私信").font(.system(size: 12.5)).frame(width: 48)
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.regular)
+                GlassIconButton(systemImage: "arrow.up.right.square", help: "在浏览器中打开主页") {
+                    if let url = URL(string: "https://www.coolapk.com/u/\(uid)") {
+                        NSWorkspace.shared.open(url)
+                    }
+                }
             }
         }
+        .fixedSize()
     }
 
     private func stat(_ title: String, _ value: Int, action: @escaping () -> Void) -> some View {
@@ -274,6 +277,7 @@ struct LevelBar: View {
                 .padding(.vertical, 1)
                 .background(Palette.brand, in: Capsule())
                 .foregroundStyle(.white)
+                .fixedSize()
             if next > 0 {
                 GeometryReader { proxy in
                     ZStack(alignment: .leading) {

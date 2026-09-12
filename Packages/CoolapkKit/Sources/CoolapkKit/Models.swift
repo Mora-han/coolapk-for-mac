@@ -243,9 +243,10 @@ public struct UserProfile: Identifiable, Hashable {
         level = json.level.int
         experience = json.experience.int
         nextLevelExperience = json.next_level_experience.int
-        followNum = json.follow_num.int
-        fansNum = json.fans_num.int
-        feedNum = json.feed_num.int
+        // 接口里同时存在 follow/fans/feed 与 *_num 两种写法，两个都试。
+        followNum = json.follow_num.int > 0 ? json.follow_num.int : json.follow.int
+        fansNum = json.fans_num.int > 0 ? json.fans_num.int : json.fans.int
+        feedNum = json.feed_num.int > 0 ? json.feed_num.int : json.feed.int
         verifyLabel = json.verify_label.string
         verifyTitle = json.verify_title.string
         location = json.location.string
@@ -274,8 +275,8 @@ public struct UserBrief: Identifiable, Hashable {
         isFollowed = json.isFollowed.int > 0
         bio = json.bio.string
         verifyLabel = json.verify_label.string
-        fansNum = json.fans_num.int
-        feedNum = json.feed_num.int
+        fansNum = json.fans_num.int > 0 ? json.fans_num.int : json.fans.int
+        feedNum = json.feed_num.int > 0 ? json.feed_num.int : json.feed.int
     }
 }
 
