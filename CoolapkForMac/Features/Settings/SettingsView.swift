@@ -48,6 +48,13 @@ struct SettingsView: View {
 
     private var reading: some View {
         section("阅读") {
+            Picker("外观", selection: Binding(get: { store.appearance }, set: { store.appearance = $0 })) {
+                ForEach(AppStore.Appearance.allCases) { value in
+                    Text(value.rawValue).tag(value)
+                }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
             Toggle("显示图片", isOn: Binding(get: { store.showImages }, set: { store.showImages = $0; store.persist() }))
             Toggle("加载高清图片", isOn: Binding(get: { store.usesHighQualityImages }, set: { store.usesHighQualityImages = $0; store.persist() }))
             Toggle("显示设备信息", isOn: Binding(get: { store.showsDeviceInfo }, set: { store.showsDeviceInfo = $0; store.persist() }))
@@ -117,7 +124,7 @@ struct SettingsView: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .cardBackground(cornerRadius: 16)
+        .glassEffect(.regular, in: .rect(cornerRadius: 18))
     }
 
     private func updateCacheSize() async {

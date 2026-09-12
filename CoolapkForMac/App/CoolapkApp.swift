@@ -10,6 +10,7 @@ struct CoolapkApp: App {
             RootView()
                 .environment(store)
                 .frame(minWidth: 1080, minHeight: 700)
+                .preferredColorScheme(store.appearance.colorScheme)
         }
         .defaultSize(width: 1360, height: 880)
         .windowToolbarStyle(.unified(showsTitle: true))

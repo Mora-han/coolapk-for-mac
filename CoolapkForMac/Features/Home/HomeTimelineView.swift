@@ -26,7 +26,7 @@ struct HomeTimelineView: View {
     var body: some View {
         VStack(spacing: 0) {
             tabBar
-            Divider()
+            Divider().opacity(0.4)
             if let model {
                 FeedListView(
                     model: model,
@@ -49,30 +49,12 @@ struct HomeTimelineView: View {
     }
 
     private var tabBar: some View {
-        ScrollView(.horizontal) {
-            HStack(spacing: 6) {
-                ForEach(tabs) { tab in
-                    Button {
-                        withAnimation(.snappy(duration: 0.18)) { selected = tab.pageName }
-                    } label: {
-                        Text(tab.title)
-                            .font(.system(size: 13, weight: selected == tab.pageName ? .semibold : .regular))
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .background {
-                                if selected == tab.pageName {
-                                    Capsule().fill(Palette.brand.opacity(0.16))
-                                }
-                            }
-                            .foregroundStyle(selected == tab.pageName ? Palette.brand : Color.secondary)
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            .padding(.horizontal, 18)
-            .padding(.vertical, 8)
-        }
-        .scrollIndicators(.hidden)
+        GlassPillBar(
+            items: tabs,
+            title: \.title,
+            isSelected: { $0.pageName == selected },
+            onSelect: { selected = $0.pageName }
+        )
     }
 
     private func makeModel(for pageName: String) -> FeedListModel {

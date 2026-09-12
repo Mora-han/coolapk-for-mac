@@ -36,6 +36,9 @@ struct BannerCarousel: View {
                             .frame(width: 5.5, height: 5.5)
                     }
                 }
+                .padding(.horizontal, 9)
+                .padding(.vertical, 5)
+                .glassEffect(.clear, in: .capsule)
             }
         }
         .frame(width: width)
@@ -81,22 +84,44 @@ struct IconLinkGrid: View {
     var body: some View {
         LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: columns), spacing: 14) {
             ForEach(links) { link in
-                VStack(spacing: 6) {
-                    RemoteImage(url: link.image, maxPixel: 200, contentMode: .fill, cornerRadius: 11)
-                        .frame(width: 42, height: 42)
-                    Text(link.title)
-                        .font(.system(size: 11.5))
-                        .lineLimit(1)
-                        .foregroundStyle(.primary)
-                }
-                .frame(maxWidth: .infinity)
-                .contentShape(Rectangle())
-                .onTapGesture { store.openTarget(url: link.url) }
+                IconLinkCell(link: link) { store.openTarget(url: link.url) }
             }
         }
         .padding(14)
         .frame(width: width)
         .cardBackground(cornerRadius: 16)
+    }
+}
+
+private struct IconLinkCell: View {
+    let link: HomeIconLink
+    let action: () -> Void
+
+    @State private var hovering = false
+
+    var body: some View {
+        VStack(spacing: 6) {
+            RemoteImage(url: link.image, maxPixel: 200, contentMode: .fill, cornerRadius: 11)
+                .frame(width: 42, height: 42)
+                .shadow(color: .black.opacity(hovering ? 0.18 : 0), radius: 6, y: 2)
+            Text(link.title)
+                .font(.system(size: 11.5))
+                .lineLimit(1)
+                .foregroundStyle(.primary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 4)
+        .background {
+            if hovering {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(Palette.brand.opacity(0.09))
+            }
+        }
+        .contentShape(Rectangle())
+        .onTapGesture(perform: action)
+        .scaleEffect(hovering ? 1.05 : 1)
+        .animation(.snappy(duration: 0.16), value: hovering)
+        .onHover { hovering = $0 }
     }
 }
 

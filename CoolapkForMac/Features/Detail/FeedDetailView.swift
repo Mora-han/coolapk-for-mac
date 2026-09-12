@@ -94,9 +94,7 @@ struct FeedDetailView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
 
             if !item.pics.isEmpty {
-                FeedMediaGrid(images: item.pics, width: 620, quality: 2) { index in
-                    store.viewer = ViewerState(images: item.pics, index: index, title: item.username)
-                }
+                detailMedia
             }
             if !item.targetTitle.isEmpty { FeedTargetCard(item: item) }
             if let source = item.sourceFeed { ForwardedCard(item: source) }
@@ -107,6 +105,26 @@ struct FeedDetailView: View {
         }
         .padding(18)
         .cardBackground(cornerRadius: 18)
+    }
+
+    /// 详情页的图片：单图按原比例完整展示，多图用网格。
+    @ViewBuilder
+    private var detailMedia: some View {
+        if item.pics.count == 1 {
+            AdaptiveRemoteImage(
+                url: item.pics[0],
+                maxWidth: min(620, store.contentWidth),
+                maxHeight: 620,
+                mode: .crop,
+                quality: 2
+            ) {
+                store.viewer = ViewerState(images: item.pics, index: 0, title: item.username)
+            }
+        } else {
+            FeedMediaGrid(images: item.pics, width: min(620, store.contentWidth), quality: 2) { index in
+                store.viewer = ViewerState(images: item.pics, index: index, title: item.username)
+            }
+        }
     }
 
     private var authorRow: some View {

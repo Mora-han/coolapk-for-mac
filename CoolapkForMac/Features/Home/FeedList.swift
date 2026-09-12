@@ -232,6 +232,7 @@ struct FeedCardView: View {
     @Environment(AppStore.self) private var store
     @State private var expanded = false
     @State private var showShareSheet = false
+    @State private var hovering = false
 
     private var textWidth: CGFloat { max(200, width - 28) }
     private var attributed: NSAttributedString {
@@ -272,6 +273,11 @@ struct FeedCardView: View {
         .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         .onTapGesture { store.selectedFeed = item }
         .contextMenu { contextMenu }
+        .hoverLift(hovering, scale: 1.004)
+        .onHover { inside in
+            hovering = inside
+            if inside { NSCursor.pointingHand.push() } else { NSCursor.pop() }
+        }
     }
 
     private var header: some View {
@@ -437,10 +443,13 @@ struct FeedMediaGrid: View {
     }
 
     private var single: some View {
-        RemoteImage(url: images[0], maxPixel: 1_600, contentMode: .fill, cornerRadius: 12, quality: quality)
-            .frame(width: width, height: min(width * 1.05, 420), alignment: .center)
-            .clipped()
-            .onTapGesture { onOpen(0) }
+        AdaptiveRemoteImage(
+            url: images[0],
+            maxWidth: width,
+            maxHeight: min(width * 1.1, 460),
+            mode: .crop,
+            quality: quality
+        ) { onOpen(0) }
     }
 
     private var columns: Int {

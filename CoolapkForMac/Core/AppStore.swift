@@ -77,6 +77,23 @@ final class AppStore {
     var fontSize: Double = 15
     var contentWidth: Double = 620
     var autoPlayGIF = true
+    var appearance: Appearance = .system {
+        didSet { persist() }
+    }
+
+    enum Appearance: String, CaseIterable, Identifiable {
+        case system = "跟随系统"
+        case light = "浅色"
+        case dark = "深色"
+        var id: String { rawValue }
+        var colorScheme: ColorScheme? {
+            switch self {
+            case .system: return nil
+            case .light: return .light
+            case .dark: return .dark
+            }
+        }
+    }
 
     // Navigation
     var selection: NavItem? = .home
@@ -110,6 +127,10 @@ final class AppStore {
         if storedFont > 0 { fontSize = storedFont }
         let storedWidth = defaults.double(forKey: "settings.contentWidth")
         if storedWidth > 0 { contentWidth = storedWidth }
+        if let raw = defaults.string(forKey: "settings.appearance"),
+           let value = Appearance(rawValue: raw) {
+            appearance = value
+        }
 
         uid = defaults.string(forKey: "session.uid") ?? ""
         username = defaults.string(forKey: "session.username") ?? ""
@@ -180,6 +201,7 @@ final class AppStore {
         defaults.set(showsDeviceInfo, forKey: "settings.deviceInfo")
         defaults.set(fontSize, forKey: "settings.fontSize")
         defaults.set(contentWidth, forKey: "settings.contentWidth")
+        defaults.set(appearance.rawValue, forKey: "settings.appearance")
     }
 
     func present(_ message: String) {
