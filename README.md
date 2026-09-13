@@ -56,6 +56,7 @@ CoolapkForMac/         应用层
     Compose/       发布动态
     Login/         登录
     Settings/      设置
+  AppIcon.icon   Icon Composer 图标（actool 编进 Assets.car）
   Resources/Emoji/  官方表情包
 ```
 

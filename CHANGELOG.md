@@ -3,6 +3,12 @@
 本项目按功能拆分小版本，每个版本对应一次可回退的提交（tag 形如 v0.1.0）。
 下面是完整版本历史，最新版本排在最前。
 
+## 0.17.1 — 应用图标
+- 接入 Icon Composer 图标：`CoolapkForMac/AppIcon.icon` 由 `actool` 编进 `Assets.car`
+  （同时生成 `AppIcon.icns` 作为旧系统兜底），`Info.plist` 的 `CFBundleIconName` 指向 `AppIcon`。
+- `project.yml` 里把 `.icon` 文稿按 `type: file` 加进 Resources，并设
+  `ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon`；素材重命名为 `Assets/logo.png`，避免中文空格文件名。
+
 ## 0.17.0 — 搜索改造：侧栏搜索框、边打边搜、结果可点
 - 搜索框挪到侧栏左上角（`.searchable(placement: .sidebar)`），与 App Store 一致；页面里那条自己的
   搜索框删掉，关键词只有侧栏一处来源。
