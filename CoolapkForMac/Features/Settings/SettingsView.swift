@@ -94,12 +94,17 @@ struct SettingsView: View {
         }
     }
 
+    /// 版本号直接读打包信息，跟 git tag 保持一致（0.x.x 小版本）。
+    static var appVersion: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev"
+    }
+
     private var about: some View {
         section("关于") {
             HStack {
                 Text("酷安 for Mac")
                 Spacer()
-                Text("版本 1.0").foregroundStyle(.secondary).font(.system(size: 12))
+                Text("版本 \(Self.appVersion)").foregroundStyle(.secondary).font(.system(size: 12))
             }
             Text("第三方非官方客户端，基于酷安开放接口实现，数据版权归酷安所有。仅供学习交流使用。")
                 .font(.system(size: 11.5))

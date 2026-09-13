@@ -28,6 +28,17 @@ public final class ImageStore {
         return url
     }
 
+    /// 从酷安图床的 `@宽x高.扩展名` 后缀里读出原始宽高比，无需下载图片。
+    public nonisolated static func declaredAspect(of url: String) -> CGFloat? {
+        guard let range = url.range(of: "@", options: .backwards) else { return nil }
+        let suffix = url[range.upperBound...]
+        guard let dot = suffix.range(of: ".") else { return nil }
+        let parts = suffix[suffix.startIndex..<dot.lowerBound].split(separator: "x")
+        guard parts.count == 2, let width = Double(parts[0]), let height = Double(parts[1]), height > 0 else { return nil }
+        guard width > 0, width < 40_000, height < 40_000 else { return nil }
+        return CGFloat(width / height)
+    }
+
     /// Rewrites the Coolapk CDN size suffix to fetch a smaller variant.
     public nonisolated static func resized(_ url: String, quality: Int) -> String {
         guard quality < 2 else { return url }
@@ -41,6 +52,13 @@ public final class ImageStore {
         let newWidth = max(120, Int(Double(width) * scale))
         let newHeight = max(120, Int(Double(height) * scale))
         return String(url[..<range.lowerBound]) + "@\(newWidth)x\(newHeight).jpg"
+    }
+
+    /// 返回图片的宽高比；未命中缓存时会触发一次加载。
+    public func aspect(for rawURL: String, maxPixel: Int = 900) async -> CGFloat? {
+        guard let image = await image(for: rawURL, maxPixel: maxPixel) else { return nil }
+        guard image.size.height > 0 else { return nil }
+        return image.size.width / image.size.height
     }
 
     public func image(for rawURL: String, maxPixel: Int = 1400) async -> NSImage? {

@@ -473,12 +473,62 @@ struct FeedMediaGrid: View {
 
     private let spacing: CGFloat = 6
 
+    /// 已加载图片的宽高比，用来决定横图是否需要整幅展示。
+    @State private var aspects: [String: CGFloat] = [:]
+
     var body: some View {
         Group {
             if images.count == 1 {
                 single
+            } else if showsFullWidth {
+                wideColumn
             } else {
                 grid
+            }
+        }
+        .task(id: images) { await measure() }
+    }
+
+    /// 图片真实宽高比：优先用图床 URL 里声明的大小，其次用已加载图片。
+    private var aspectList: [CGFloat] {
+        images.compactMap { aspects[$0] ?? ImageStore.declaredAspect(of: $0) }
+    }
+
+    /// 横图为主（代码截图、网页长图等）时改用整幅纵向展示，避免被方格子裁成读不懂的画面。
+    /// 用中位数判断，并且限制张数，防止普通横拍照片把卡片拉得又长又空。
+    private var showsFullWidth: Bool {
+        guard images.count <= 12 else { return false }
+        let known = aspectList
+        guard known.count == images.count, !known.isEmpty else { return false }
+        let median = known.sorted()[known.count / 2]
+        if median >= 2.5 { return true }
+        guard images.count <= 6 else { return false }
+        return median >= 1.45
+    }
+
+    private var wideColumn: some View {
+        VStack(spacing: spacing) {
+            ForEach(Array(images.enumerated()), id: \.offset) { index, url in
+                AdaptiveRemoteImage(
+                    url: url,
+                    maxWidth: width,
+                    maxHeight: images.count > 4 ? 320 : 440,
+                    mode: .fit,
+                    quality: quality
+                ) { onOpen(index) }
+            }
+        }
+        .frame(width: width, alignment: .leading)
+    }
+
+    /// 后端没有给出尺寸时，补一次真实加载再判断。
+    private func measure() async {
+        guard images.count > 1, images.count <= 12, aspectList.count < images.count else { return }
+        let pending = images.filter { aspects[$0] == nil && ImageStore.declaredAspect(of: $0) == nil }
+        for url in pending {
+            let link = ImageStore.resized(ImageStore.normalize(url), quality: quality)
+            if let value = await ImageStore.shared.aspect(for: link) {
+                aspects[url] = value
             }
         }
     }
