@@ -14,6 +14,12 @@
 
 截图里侧栏左下角的账号信息做了打码处理。
 
+## 下载
+
+预编译版本在 [Releases](https://github.com/Mora-han/coolapk-for-mac/releases)：当前 0.18.0
+（macOS 26.0+，arm64 + x86_64 通用二进制）。包是本机 ad-hoc 签名、没有 Apple 公证，首次打开
+需要右键 →「打开」，或先执行 `xattr -dr com.apple.quarantine /Applications/Coolapk.app`。
+
 ## 运行
 
 ```bash
