@@ -117,7 +117,7 @@ struct AppsView: View {
             page += 1
             error = nil
         } catch {
-            self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
+            self.error = LoadError.message(error)
         }
     }
 }
@@ -162,7 +162,7 @@ struct AppDetailView: View {
             do {
                 item = AppItem(json: try await API.appDetail(id: id))
             } catch {
-                self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
+                self.error = LoadError.message(error)
             }
         }
     }

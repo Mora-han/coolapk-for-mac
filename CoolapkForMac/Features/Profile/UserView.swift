@@ -236,7 +236,7 @@ struct UserView: View {
             profile = try await API.userProfile(uid: uid)
             error = nil
         } catch {
-            self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
+            self.error = LoadError.message(error)
         }
     }
 

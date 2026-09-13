@@ -119,6 +119,24 @@ public struct JSON: Hashable {
 
     public var exists: Bool { !isNull }
 
+    /// 还原成 JSON 文本，调试与日志排查用。
+    public var jsonText: String {
+        guard let data = try? JSONSerialization.data(withJSONObject: JSON.any(from: value), options: [.sortedKeys]),
+              let text = String(data: data, encoding: .utf8) else { return "" }
+        return text
+    }
+
+    private static func any(from value: JSONValue) -> Any {
+        switch value {
+        case .null: return NSNull()
+        case let .bool(item): return item
+        case let .number(item): return item
+        case let .string(item): return item
+        case let .array(items): return items.map { any(from: $0) }
+        case let .object(dict): return dict.mapValues { any(from: $0) }
+        }
+    }
+
     /// 是否是 JSON 对象（酷安把不少非列表数据放在 `data` 对象里）。
     public var isObject: Bool {
         if case .object = value { return true }

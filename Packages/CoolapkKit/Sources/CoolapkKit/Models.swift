@@ -636,22 +636,108 @@ public struct NotificationItem: Identifiable, Hashable {
     public var isRead = false
     public var extraTitle: String = ""
     public var extraPic: String = ""
+    /// 动作短语（「赞了你的动态」「提到了你」…），用于列表首行。
+    public var action: String = ""
     public var raw: JSON = .null
 
     public init(json: JSON) {
         raw = json
-        id = json.id.exists ? json.id.identifier : json.entityId.identifier
+        // 点赞通知的 `id` 是动态 id，同一个动态下的多次点赞会撞车（列表只剩一条），
+        // 这里补上点赞人 / 时间组成唯一键。
+        let baseID = json.id.exists ? json.id.identifier : json.entityId.identifier
+        let actor = json.likeUid.exists ? json.likeUid.identifier : (json.fromuid.exists ? json.fromuid.identifier : "")
+        let stamp = json.likeTime.exists ? json.likeTime.string : json.dateline.string
+        id = actor.isEmpty ? baseID : "\(baseID)-\(actor)-\(stamp)"
         type = json.type.string
+
+        // 五类通知（评论 / @我 / @评论 / 赞 / 关注 / 系统通知）字段名各不相同，而且
+        // 一条点赞通知里同时带着「动态作者」和「点赞人」，取错就会全显示成作者，
+        // 所以先判断种类，再按种类挑字段。
+        let kind = Self.kind(json: json, type: type)
+        switch kind {
+        case .like:
+            avatar = Self.firstNonEmpty([
+                json.likeAvatar.string, json.likeUserInfo.userAvatar.string,
+                json.userAvatar.string, json.fromUserAvatar.string,
+            ])
+            username = Self.firstNonEmpty([
+                json.likeUsername.string, json.likeUserInfo.username.string,
+                json.username.string, json.fromusername.string,
+            ])
+        case .message:
+            avatar = Self.firstNonEmpty([
+                json.messageUserInfo.userAvatar.string, json.fromUserAvatar.string, json.userAvatar.string,
+            ])
+            username = Self.firstNonEmpty([
+                json.messageUserInfo.username.string, json.fromusername.string, json.username.string,
+            ])
+        case .system, .comment:
+            avatar = Self.firstNonEmpty([
+                json.fromUserAvatar.string, json.fromUserInfo.userAvatar.string,
+                json.userAvatar.string, json.userInfo.userAvatar.string,
+            ])
+            username = Self.firstNonEmpty([
+                json.fromusername.string, json.fromUserInfo.username.string,
+                json.username.string, json.userInfo.username.string,
+            ])
+        }
+
         title = json.title.string
-        message = json.message.string
-        avatar = json.userAvatar.string.isEmpty ? json.avatar.string : json.userAvatar.string
-        username = json.username.string
+        message = Self.firstNonEmpty([json.note.string, json.message.string, json.infoHtml.string])
         url = json.url.string
-        dateline = json.dateline.date ?? json.lastupdate.date
+        dateline = json.dateline.date ?? json.likeTime.date ?? json.lastupdate.date
         datelineText = json.dateline_text.string
-        isRead = json.is_read.int > 0
-        extraTitle = json.extra_title.string
+        // 系统通知用 `isnew`（0 表示已读），评论/赞类用 `is_read`。
+        isRead = json.is_read.exists ? json.is_read.int > 0 : (json.isnew.exists ? json.isnew.int == 0 : false)
+        extraTitle = Self.firstNonEmpty([json.extra_title.string, json.feedTypeName.string])
         extraPic = json.extra_pic.string
+        action = Self.action(json: json, type: type, extraTitle: extraTitle)
+    }
+
+    /// 通知种类：点赞要区分「谁点的赞」和「谁的动态」，是这里最容易取错的地方。
+    private enum Kind { case like, system, message, comment }
+
+    private static func kind(json: JSON, type: String) -> Kind {
+        switch type {
+        case "notify_xms", "notification": return .system
+        case "feedlike", "like", "feed_like": return .like
+        case "message", "chat": return .message
+        case "feed_reply", "reply", "commentme", "feed_comment",
+             "atme", "at_me", "atcommentme", "at_comment_me",
+             "contacts_follow", "follow": return .comment
+        default: break
+        }
+        if json.likeAvatar.exists || json.likeUsername.exists || json.feedTypeName.exists { return .like }
+        if json.messageUserInfo.exists || json.ukey.exists { return .message }
+        if json.fromUserAvatar.exists || json.note.exists { return .system }
+        return .comment
+    }
+
+    /// 动作短语。先按接口返回的 `type` 判断（实测有 `notify_xms` / `feed_reply` 等），
+    /// type 不认识时再按字段特征兜底。
+    private static func action(json: JSON, type: String, extraTitle: String) -> String {
+        switch type {
+        case "notify_xms", "notification": return "系统通知"
+        case "feed_reply", "reply", "commentme", "feed_comment": return "评论了你"
+        case "atme", "at_me": return "提到了你"
+        case "atcommentme", "at_comment_me": return "在评论里提到了你"
+        case "feedlike", "like", "feed_like": return extraTitle.isEmpty ? "赞了你" : "赞了你的\(extraTitle)"
+        case "contacts_follow", "follow": return "关注了你"
+        case "message", "chat": return "给你发了私信"
+        default: break
+        }
+        if json.likeAvatar.exists || json.likeUsername.exists || json.feedTypeName.exists {
+            return extraTitle.isEmpty ? "赞了你" : "赞了你的\(extraTitle)"
+        }
+        if json.messageUserInfo.exists || json.ukey.exists { return "给你发了私信" }
+        if json.ruid.exists || json.rusername.exists { return "回复了你" }
+        if json.note.exists || json.fromUserAvatar.exists { return "系统通知" }
+        if json.parentInfo.exists || json.message.exists { return "评论了你" }
+        return extraTitle.isEmpty ? type : extraTitle
+    }
+
+    private static func firstNonEmpty(_ values: [String]) -> String {
+        values.first { !$0.isEmpty } ?? ""
     }
 }
 

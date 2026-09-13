@@ -48,7 +48,22 @@ struct NotificationsView: View {
             Divider()
             content
         }
-        .task { await load(reset: true) }
+        .task {
+            applyDebugKind()
+            await load(reset: true)
+        }
+    }
+
+    private func applyDebugKind() {
+        guard let raw = DebugHooks.notificationKind else { return }
+        switch raw {
+        case "comments", "评论": kind = .comments
+        case "atMe", "@我": kind = .atMe
+        case "atComment", "@评论": kind = .atComment
+        case "likes", "赞": kind = .likes
+        case "follows", "关注": kind = .follows
+        default: break
+        }
     }
 
     @ViewBuilder
@@ -111,18 +126,20 @@ struct NotificationsView: View {
             finished = false
         }
         guard !finished else { return }
+        guard !loading else { return }
         loading = true
         defer { loading = false }
         do {
             let raw = try await API.notifications(type: kind.path, page: page)
             let parsed = raw.map { NotificationItem(json: $0) }
+            if let first = raw.first { DebugHooks.log("notif sample: \(first.jsonText.prefix(300))") }
             let existing = Set(items.map(\.id))
             items.append(contentsOf: parsed.filter { !existing.contains($0.id) })
             if parsed.isEmpty { finished = true }
             page += 1
             error = nil
         } catch {
-            self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
+            self.error = LoadError.message(error)
         }
     }
 }
@@ -145,7 +162,7 @@ struct NotificationRow: View {
                 HStack(spacing: 6) {
                     Text(item.username.isEmpty ? item.title : item.username)
                         .font(.system(size: 13, weight: .medium))
-                    Text(item.raw.action.string.isEmpty ? item.title : item.raw.action.string)
+                    Text(item.action.isEmpty ? item.title : item.action)
                         .font(.system(size: 11.5))
                         .foregroundStyle(.secondary)
                     Spacer()

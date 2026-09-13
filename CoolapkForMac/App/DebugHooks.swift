@@ -20,6 +20,12 @@ enum DebugHooks {
         return (value?.isEmpty == false) ? value : nil
     }
 
+    /// `COOLAPK_NOTIFY=likes` 等，直接打开消息页的某个分类，便于回归截图。
+    static var notificationKind: String? {
+        let value = ProcessInfo.processInfo.environment["COOLAPK_NOTIFY"]
+        return (value?.isEmpty == false) ? value : nil
+    }
+
     static let isVerbose = ProcessInfo.processInfo.environment["COOLAPK_DEBUG"] == "1"
 
     /// 打开 `COOLAPK_DEBUG=1` 时把请求与错误打到标准错误，便于命令行排查；

@@ -265,7 +265,7 @@ struct SearchView: View {
             if items.isEmpty { finished = true }
             error = nil
         } catch {
-            self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
+            self.error = LoadError.message(error)
         }
     }
 

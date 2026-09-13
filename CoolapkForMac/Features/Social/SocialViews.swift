@@ -384,7 +384,7 @@ struct UserListView: View {
             page += 1
             error = nil
         } catch {
-            self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
+            self.error = LoadError.message(error)
         }
     }
 }
