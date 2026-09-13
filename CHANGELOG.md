@@ -3,6 +3,20 @@
 本项目按功能拆分小版本，每个版本对应一次可回退的提交（tag 形如 v0.1.0）。
 下面是完整版本历史，最新版本排在最前。
 
+## 0.14.0 — 侧边栏改用原生 source list
+- 侧边栏从 SwiftUI 的 `List(selection:)` 换成 AppKit 的 `NSTableView`（`style = .sourceList`），
+  选中态交给系统按 source list 的模糊材质绘制，并固定用中性那一种：「半透明覆盖层 + 彩色图标」，
+  与最新版 App Store 一致；不再随焦点变成强调色实心胶囊。
+- 尺寸全部取自原生控件，代码里不写任何尺寸常量：`rowSizeStyle` 用系统默认值，
+  行高由表格自己更新，`NSTableCellView` 按标准度量摆放它的 `textField` / `imageView`
+  （本机 `.large` 一档为 15pt 字号、40pt 行距、22×19 图标位），分组标题走系统的 group row 样式。
+  因此字体大小仍跟随「辅助功能 → 文字大小」缩放。
+- 新增 `LiquidGlassUI.SourceListSidebar`：泛型 `Value`、分组、SF Symbol 图标、数字徽标、
+  选择同步（返回 / 前进切换到不在侧栏的页面时自动取消高亮），与业务无关，可复用。
+- 两个坑记在这里：一是 `NSTableView` 的背景一旦被改成 `.clear` 之类，AppKit 就不再使用
+  source list 的模糊材质，选中态退化成普通实心高亮；二是不要在 `layout()` 里替换图标，
+  会打断 AppKit 当前的显示周期并抛异常崩溃。
+
 ## 0.13.0 — 图片统一九宫格
 - 多图改回统一的九宫格：一律按方格裁切，2 / 4 张排两列、其余排三列，
   卡片高度只由行数决定，不再被横图（代码截图、网页长图）整幅撑开。

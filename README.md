@@ -41,6 +41,7 @@ Packages/
     ImageViewer        图片查看器（缩放、拖拽、缩略图、存储、复制）
     ImageLoader        图片缓存实现
     CommonViews        计数、标签、空状态、加载、错误条
+    SourceListSidebar  原生侧边栏列表（AppKit source list，系统选中态）
 
 CoolapkForMac/         应用层
   App/           应用入口、三栏主界面（NavigationSplitView）、AppStore

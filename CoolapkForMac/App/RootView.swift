@@ -106,62 +106,78 @@ struct RootView: View {
 
     // MARK: - Sidebar
 
+    /// 侧边栏用 AppKit 的 source list 承载：选中态是系统的半透明覆盖层，
+    /// 和访达 / App Store 一致（SwiftUI 的 List 只能画强调色实心高亮）。
     private var sidebar: some View {
-        @Bindable var store = store
-        return List(selection: $store.selection) {
-            Section("酷安") {
-                row(.home, icon: "house")
-                row(.follow, icon: "person.2")
-                row(.ranking, icon: "flame")
-            }
-
-            if !store.sidebarSections.isEmpty {
-                ForEach(store.sidebarSections) { section in
-                    if section.title.contains("首页") { EmptyView() } else {
-                        Section(section.title) {
-                            ForEach(section.tabs) { tab in
-                                row(.tab(tab.pageName, tab.title), icon: icon(for: tab.pageName))
-                            }
-                        }
-                    }
-                }
-            } else {
-                Section("发现") {
-                    row(.apps, icon: "square.grid.2x2")
-                    row(.games, icon: "gamecontroller")
-                }
-            }
-
-            Section("我的") {
-                row(.me, icon: "person.crop.circle")
-                row(.notifications, icon: "bell", badge: store.badge.total)
-                row(.favorites, icon: "star")
-                row(.history, icon: "clock.arrow.circlepath")
-                row(.settings, icon: "gearshape")
-            }
+        SourceListSidebar(sections: sidebarSections, selection: store.selection) { item in
+            store.selection = item
         }
-        .listStyle(.sidebar)
         .navigationSplitViewColumnWidth(min: 186, ideal: 202, max: 250)
     }
 
-    private func row(_ item: NavItem, icon: String, badge: Int = 0) -> some View {
-        Label {
-            HStack {
-                Text(title(for: item))
-                if badge > 0 {
-                    Spacer()
-                    Text(badge > 99 ? "99+" : "\(badge)")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 5)
-                        .padding(.vertical, 1)
-                        .background(Palette.like, in: Capsule())
-                }
+    private var sidebarSections: [SourceListSidebar<NavItem>.Section] {
+        var sections: [SourceListSidebar<NavItem>.Section] = [
+            .init(id: "coolapk", title: "酷安", rows: [
+                entry(.home, icon: "house"),
+                entry(.follow, icon: "person.2"),
+                entry(.ranking, icon: "flame"),
+            ])
+        ]
+
+        if !store.sidebarSections.isEmpty {
+            for (index, section) in store.sidebarSections.enumerated() where !section.title.contains("首页") {
+                sections.append(.init(id: "tab-\(index)", title: section.title, rows: section.tabs.map { tab in
+                    entry(.tab(tab.pageName, tab.title), icon: icon(for: tab.pageName))
+                }))
             }
-        } icon: {
-            Image(systemName: icon)
+        } else {
+            sections.append(.init(id: "discover", title: "发现", rows: [
+                entry(.apps, icon: "square.grid.2x2"),
+                entry(.games, icon: "gamecontroller"),
+            ]))
         }
-        .tag(item)
+
+        sections.append(.init(id: "mine", title: "我的", rows: [
+            entry(.me, icon: "person.crop.circle"),
+            entry(.notifications, icon: "bell", badge: store.badge.total),
+            entry(.favorites, icon: "star"),
+            entry(.history, icon: "clock.arrow.circlepath"),
+            entry(.settings, icon: "gearshape"),
+        ]))
+
+        return sections
+    }
+
+    private func entry(_ item: NavItem, icon: String, badge: Int = 0) -> SourceListSidebar<NavItem>.Row {
+        .init(id: identifier(for: item), value: item, title: title(for: item), systemImage: icon, badge: badge)
+    }
+
+    /// 侧栏条目的稳定标识，用于行复用与去重。
+    private func identifier(for item: NavItem) -> String {
+        switch item {
+        case .home: return "home"
+        case .follow: return "follow"
+        case .ranking: return "ranking"
+        case let .tab(pageName, _): return "tab:\(pageName)"
+        case let .discover(id, _): return "discover:\(id)"
+        case .apps: return "apps"
+        case .games: return "games"
+        case .me: return "me"
+        case .notifications: return "notifications"
+        case .messages: return "messages"
+        case .history: return "history"
+        case .favorites: return "favorites"
+        case .settings: return "settings"
+        case let .topic(tag): return "topic:\(tag)"
+        case let .user(uid): return "user:\(uid)"
+        case let .app(id, _): return "app:\(id)"
+        case let .product(id, _): return "product:\(id)"
+        case let .collection(id, _): return "collection:\(id)"
+        case let .dyh(id, _): return "dyh:\(id)"
+        case let .question(id, _): return "question:\(id)"
+        case let .vote(id, _): return "vote:\(id)"
+        case let .page(name, _): return "page:\(name)"
+        }
     }
 
     private func title(for item: NavItem) -> String {
