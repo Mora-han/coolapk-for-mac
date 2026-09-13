@@ -485,6 +485,7 @@ struct FeedCardView: View {
 
 // MARK: - Media grid
 
+/// 统一的九宫格图片墙：多图一律按方格裁切排布，格子等宽等高，卡片不会被长图撑开。
 struct FeedMediaGrid: View {
     let images: [String]
     let width: CGFloat
@@ -493,63 +494,11 @@ struct FeedMediaGrid: View {
 
     private let spacing: CGFloat = 6
 
-    /// 已加载图片的宽高比，用来决定横图是否需要整幅展示。
-    @State private var aspects: [String: CGFloat] = [:]
-
     var body: some View {
-        Group {
-            if images.count == 1 {
-                single
-            } else if showsFullWidth {
-                wideColumn
-            } else {
-                grid
-            }
-        }
-        .task(id: images) { await measure() }
-    }
-
-    /// 图片真实宽高比：优先用图床 URL 里声明的大小，其次用已加载图片。
-    private var aspectList: [CGFloat] {
-        images.compactMap { aspects[$0] ?? ImageStore.declaredAspect(of: $0) }
-    }
-
-    /// 横图为主（代码截图、网页长图等）时改用整幅纵向展示，避免被方格子裁成读不懂的画面。
-    /// 用中位数判断，并且限制张数，防止普通横拍照片把卡片拉得又长又空。
-    private var showsFullWidth: Bool {
-        guard images.count <= 12 else { return false }
-        let known = aspectList
-        guard known.count == images.count, !known.isEmpty else { return false }
-        let median = known.sorted()[known.count / 2]
-        if median >= 2.5 { return true }
-        guard images.count <= 6 else { return false }
-        return median >= 1.45
-    }
-
-    private var wideColumn: some View {
-        VStack(spacing: spacing) {
-            ForEach(Array(images.enumerated()), id: \.offset) { index, url in
-                AdaptiveRemoteImage(
-                    url: url,
-                    maxWidth: width,
-                    maxHeight: images.count > 4 ? 320 : 440,
-                    mode: .fit,
-                    quality: quality
-                ) { onOpen(index) }
-            }
-        }
-        .frame(width: width, alignment: .leading)
-    }
-
-    /// 后端没有给出尺寸时，补一次真实加载再判断。
-    private func measure() async {
-        guard images.count > 1, images.count <= 12, aspectList.count < images.count else { return }
-        let pending = images.filter { aspects[$0] == nil && ImageStore.declaredAspect(of: $0) == nil }
-        for url in pending {
-            let link = ImageStore.resized(ImageStore.normalize(url), quality: quality)
-            if let value = await ImageStore.shared.aspect(for: link) {
-                aspects[url] = value
-            }
+        if images.count == 1 {
+            single
+        } else {
+            grid
         }
     }
 
@@ -565,9 +514,8 @@ struct FeedMediaGrid: View {
 
     private var columns: Int {
         switch images.count {
-        case 2: return 2
-        case 4: return 2
-        default: return images.count == 3 ? 3 : 3
+        case 2, 4: return 2
+        default: return 3
         }
     }
 
@@ -576,19 +524,11 @@ struct FeedMediaGrid: View {
         return (width - spacing * (count - 1)) / count
     }
 
-    /// 竖图为主时把格子加高，避免 9:19.5 的手机截图被正方形裁掉大半。
-    private var cellHeight: CGFloat {
-        guard images.count > 1, aspectList.count == images.count, !aspectList.isEmpty else { return cellSize }
-        let median = aspectList.sorted()[aspectList.count / 2]
-        guard median < 1 else { return cellSize }
-        return cellSize / max(median, 0.5)
-    }
-
     private var grid: some View {
         LazyVGrid(columns: Array(repeating: GridItem(.fixed(cellSize), spacing: spacing), count: columns), spacing: spacing) {
             ForEach(Array(images.enumerated()), id: \.offset) { index, url in
                 RemoteImage(url: url, maxPixel: 900, contentMode: .fill, cornerRadius: 10, quality: quality)
-                    .frame(width: cellSize, height: cellHeight)
+                    .frame(width: cellSize, height: cellSize)
                     .clipped()
                     .onTapGesture { onOpen(index) }
             }
