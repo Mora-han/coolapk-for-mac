@@ -3,6 +3,10 @@
 本项目按功能拆分小版本，每个版本对应一次可回退的提交（tag 形如 v0.1.0）。
 下面是完整版本历史，最新版本排在最前。
 
+## 0.17.2 — 图标更新：自动底色 + 玻璃 logo
+- 跟着 Icon Composer 的修改同步：顶层 `fill` 改为 `automatic`，绿色渐变移到玻璃图层上
+  （浅色 0.338/0.715/0.442，深色 0.306/0.656/0.401），素材图本身没变。
+
 ## 0.17.1 — 应用图标
 - 接入 Icon Composer 图标：`CoolapkForMac/AppIcon.icon` 由 `actool` 编进 `Assets.car`
   （同时生成 `AppIcon.icns` 作为旧系统兜底），`Info.plist` 的 `CFBundleIconName` 指向 `AppIcon`。

@@ -1,7 +1,5 @@
 {
-  "fill": {
-    "automatic-gradient": "display-p3:0.32951,0.70639,0.43231,1.00000"
-  },
+  "fill": "automatic",
   "groups": [
     {
       "layers": [],
@@ -20,7 +18,9 @@
           "blend-mode": "normal",
           "fill-specializations": [
             {
-              "value": "automatic"
+              "value": {
+                "automatic-gradient": "display-p3:0.33842,0.71524,0.44164,1.00000"
+              }
             },
             {
               "appearance": "dark",
@@ -32,7 +32,7 @@
           "glass": true,
           "hidden": false,
           "image-name": "logo.png",
-          "name": "未命名 3",
+          "name": "logo",
           "opacity": 1,
           "position": {
             "scale": 0.25,
