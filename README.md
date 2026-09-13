@@ -2,6 +2,18 @@
 
 原生 macOS 酷安第三方客户端，SwiftUI + Liquid Glass 编写，采用官方 App 的接口与数据结构。
 
+## 截图
+
+| 首页（推荐 / 头条 / 热榜） | 关注页 |
+| :--: | :--: |
+| ![首页](docs/screenshots/home.png) | ![关注页](docs/screenshots/follow.png) |
+
+| 动态详情 | 搜索 |
+| :--: | :--: |
+| ![动态详情](docs/screenshots/detail.png) | ![搜索](docs/screenshots/search.png) |
+
+截图里侧栏左下角的账号信息做了打码处理。
+
 ## 运行
 
 ```bash
