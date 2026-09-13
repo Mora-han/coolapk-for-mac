@@ -33,15 +33,13 @@ struct NotificationsView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Picker("", selection: $kind) {
-                ForEach(Kind.allCases) { item in
-                    Text(item.rawValue).tag(item)
-                }
-            }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .padding(.horizontal, 18)
-            .padding(.vertical, 10)
+            // 与首页 Tab 用同一套胶囊玻璃控件，视觉上保持一致。
+            GlassPillBar(
+                items: Kind.allCases,
+                title: \.rawValue,
+                isSelected: { $0 == kind },
+                onSelect: { kind = $0 }
+            )
             .onChange(of: kind) { _, _ in
                 Task { await load(reset: true) }
             }
@@ -154,6 +152,7 @@ enum NotificationTarget {
 struct NotificationRow: View {
     let item: NotificationItem
     var onOpen: (NotificationTarget) -> Void
+    @State private var hovering = false
 
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
@@ -190,6 +189,11 @@ struct NotificationRow: View {
         .cardBackground(cornerRadius: 14)
         .contentShape(Rectangle())
         .onTapGesture { open() }
+        .hoverLift(hovering, scale: 1.004)
+        .onHover { inside in
+            hovering = inside
+            if inside { NSCursor.pointingHand.push() } else { NSCursor.pop() }
+        }
     }
 
     private func open() {
@@ -210,6 +214,7 @@ struct NotificationRow: View {
 struct MessagesView: View {
     @Environment(AppStore.self) private var store
     @State private var items: [MessageItem] = []
+    @State private var hoveredMessage: String?
     @State private var page = 1
     @State private var loading = false
     @State private var finished = false
@@ -251,6 +256,11 @@ struct MessagesView: View {
                                 if let url = URL(string: "https://www.coolapk.com/message/\(item.uid)") {
                                     NSWorkspace.shared.open(url)
                                 }
+                            }
+                            .hoverLift(hoveredMessage == item.id, scale: 1.004)
+                            .onHover { inside in
+                                hoveredMessage = inside ? item.id : nil
+                                if inside { NSCursor.pointingHand.push() } else { NSCursor.pop() }
                             }
                             .task {
                                 if item.id == items.last?.id, !finished { await load(reset: false) }
