@@ -20,6 +20,18 @@ enum DebugHooks {
         return (value?.isEmpty == false) ? value : nil
     }
 
+    /// `COOLAPK_FOLLOW=users` / `COOLAPK_FOLLOW=topic:iOS27`：切到关注页的某个来源，便于回归截图。
+    static var followPill: FollowPill? {
+        guard let value = ProcessInfo.processInfo.environment["COOLAPK_FOLLOW"], !value.isEmpty else { return nil }
+        switch value {
+        case "all": return .all
+        case "users": return .users
+        case "more": return .moreTopics
+        case let text where text.hasPrefix("topic:"): return .topic(String(text.dropFirst("topic:".count)))
+        default: return nil
+        }
+    }
+
     /// `COOLAPK_NOTIFY=likes` 等，直接打开消息页的某个分类，便于回归截图。
     static var notificationKind: String? {
         let value = ProcessInfo.processInfo.environment["COOLAPK_NOTIFY"]

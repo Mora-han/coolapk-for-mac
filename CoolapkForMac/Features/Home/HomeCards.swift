@@ -233,6 +233,10 @@ struct TopicCardView: View {
     let width: CGFloat
 
     @Environment(AppStore.self) private var store
+    /// 点过关注按钮后以本地状态为准，不用等列表刷新。
+    @State private var followOverride: Bool?
+
+    private var isFollowed: Bool { followOverride ?? item.isFollowed }
 
     var body: some View {
         HStack(spacing: 12) {
@@ -246,14 +250,26 @@ struct TopicCardView: View {
                         .foregroundStyle(.secondary)
                         .lineLimit(2)
                 }
-                Text("\(formatCount(item.feedNum)) 条动态")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.tertiary)
+                // 关注列表这类接口不给动态条数，拿不到就不显示，别写“0 条动态”。
+                if item.feedNum > 0 {
+                    Text("\(formatCount(item.feedNum)) 条动态")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.tertiary)
+                }
             }
             Spacer(minLength: 0)
-            Button(item.isFollowed ? "已关注" : "关注") {
+            Button(isFollowed ? "已关注" : "关注") {
                 guard store.requireLogin() else { return }
-                Task { try? await API.followTopic(tag: item.title, follow: !item.isFollowed) }
+                let next = !isFollowed
+                followOverride = next
+                Task {
+                    do {
+                        try await API.followTopic(tag: item.title, follow: next)
+                    } catch {
+                        followOverride = item.isFollowed
+                        store.present((error as? APIError)?.errorDescription ?? "操作失败")
+                    }
+                }
             }
             .buttonStyle(.bordered)
             .controlSize(.small)

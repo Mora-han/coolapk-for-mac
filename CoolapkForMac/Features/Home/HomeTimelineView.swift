@@ -41,11 +41,11 @@ struct HomeTimelineView: View {
         VStack(spacing: 0) {
             tabBar
             Divider().opacity(0.4)
-            if let model {
-                FeedListView(
-                    model: model,
-                    requiresLogin: selected == "V9_HOME_TAB_FOLLOW"
-                )
+            if selected == API.followPageName {
+                // 「关注」自己带一条话题切换，交给 FollowTimelineView。
+                FollowTimelineView()
+            } else if let model {
+                FeedListView(model: model)
             } else {
                 LoadingRow()
                     .frame(maxHeight: .infinity)
@@ -58,6 +58,10 @@ struct HomeTimelineView: View {
     }
 
     private func activateModel() {
+        guard selected != API.followPageName else {
+            if model != nil { model = nil }
+            return
+        }
         let active: FeedListModel
         if let existing = models[selected] {
             active = existing

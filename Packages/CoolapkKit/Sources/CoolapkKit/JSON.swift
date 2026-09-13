@@ -119,6 +119,12 @@ public struct JSON: Hashable {
 
     public var exists: Bool { !isNull }
 
+    /// 有些字段本身是一段 JSON 文本（例如话题条目的 `extraData`），这里解出来；解不开当空。
+    public var parsed: JSON {
+        guard case let .string(text) = value, let data = text.data(using: .utf8) else { return .null }
+        return (try? JSON(data: data)) ?? .null
+    }
+
     /// 还原成 JSON 文本，调试与日志排查用。
     public var jsonText: String {
         guard let data = try? JSONSerialization.data(withJSONObject: JSON.any(from: value), options: [.sortedKeys]),

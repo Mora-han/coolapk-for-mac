@@ -317,7 +317,8 @@ struct RootView: View {
                 HomeTimelineView()
                     .navigationTitle("酷安")
             case .follow:
-                feedColumn(title: "关注", route: .feed(name: "V9_HOME_TAB_FOLLOW", type: "circle"), requiresLogin: true)
+                FollowTimelineView()
+                    .navigationTitle("关注")
             case .ranking:
                 feedColumn(title: "热榜", route: .feed(name: "V9_HOME_TAB_RANKING", type: nil))
             case let .tab(pageName, title):
@@ -371,18 +372,20 @@ struct RootView: View {
     /// 侧栏 / 首页标签的内容列，按 `/v6/main/init` 给的页面地址决定用哪种列表。
     @ViewBuilder
     private func tabContent(pageName: String, title: String) -> some View {
-        feedColumn(title: title,
-                   route: store.route(forPage: pageName),
-                   requiresLogin: pageName == "V9_HOME_TAB_FOLLOW")
-            .id(pageName)
+        if pageName == API.followPageName {
+            FollowTimelineView().navigationTitle(title).id(pageName)
+        } else {
+            feedColumn(title: title, route: store.route(forPage: pageName))
+                .id(pageName)
+        }
     }
 
     /// Feed based destinations share one model instance so that switching columns
     /// never restarts a download that is already in flight.
-    private func feedColumn(title: String, route: PageRoute, requiresLogin: Bool = false) -> some View {
+    private func feedColumn(title: String, route: PageRoute) -> some View {
         Group {
             if let contentModel {
-                FeedListView(model: contentModel, requiresLogin: requiresLogin)
+                FeedListView(model: contentModel)
             } else {
                 LoadingRow().frame(maxHeight: .infinity)
             }

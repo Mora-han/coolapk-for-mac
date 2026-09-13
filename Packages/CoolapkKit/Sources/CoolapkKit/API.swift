@@ -66,6 +66,9 @@ public enum API {
         return try rows(from: items)
     }
 
+    /// 关注页的页面名（`/v6/main/init` 里「关注」标签的 *page_name*）。
+    public static let followPageName = "V9_HOME_TAB_FOLLOW"
+
     /// Generic page timeline, used by "关注", "热榜", "话题" and friends.
     public static func pageFeed(pageName: String, page: Int, type: String? = nil) async throws -> [HomeFeedRow] {
         var extra: [String: String] = [:]
@@ -449,6 +452,16 @@ public enum API {
             let user = item.userInfo.exists ? item.userInfo : item.fUserInfo
             return UserBrief(json: user)
         }
+    }
+
+    /// 我关注的话题（`/v6/user/followTagList`），关注页顶部的话题切换就是用它。
+    public static func followedTopics(uid: String? = nil, page: Int = 1) async throws -> [TopicItem] {
+        var parameters = ["page": String(page)]
+        var target = uid ?? ""
+        if target.isEmpty { target = await client.sessionSnapshot().uid }
+        if !target.isEmpty { parameters["uid"] = target }
+        let json = try await client.get("/v6/user/followTagList", parameters)
+        return json.data.array.map { TopicItem(json: $0) }
     }
 
     public static func myProfile() async throws -> UserProfile {

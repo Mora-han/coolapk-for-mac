@@ -187,6 +187,8 @@ final class AppStore {
     var sidebarSections: [SidebarSection] = []
     /// 侧栏 / 首页标签在 `/v6/main/init` 里的页面地址（`url`），路由的权威依据。
     var pageLinks: [String: String] = [:]
+    /// 关注页（首页标签与侧栏入口共用）的话题切换状态。
+    let follow = FollowTimelineStore()
     var toast: String?
     var viewer: ViewerState?
     var focusReply = false
@@ -258,6 +260,7 @@ final class AppStore {
         username = ""
         avatar = ""
         isLoggedIn = false
+        follow.reset()
         Task { await CoolapkClient.shared.clearLogin() }
     }
 
@@ -403,6 +406,12 @@ final class AppStore {
     /// 看看号列表页（`/dyh/recommendList`、`/user/dyhFollowList`）。
     func openDyhList(title: String) {
         selection = .dyhList(title.isEmpty ? "看看号" : title)
+    }
+
+    /// 「我关注的话题」完整列表（关注页「更多话题」入口）。
+    func openFollowedTopics() {
+        guard !uid.isEmpty else { return }
+        selection = .page("/UserHelper/getFollowRows?uid=\(uid)&type=topic", "我关注的话题")
     }
 
     func openQuestion(_ value: String) {

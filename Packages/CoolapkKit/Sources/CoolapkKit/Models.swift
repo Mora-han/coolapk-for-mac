@@ -432,6 +432,12 @@ public enum HomeFeedRow: Identifiable, Hashable {
         case let .collection(item): return "collection-\(item.id)"
         }
     }
+
+    /// 发布时间，只有动态这一类带时间。合并多条流（关注页「所有内容」）时用来排序。
+    public var date: Date? {
+        if case let .feed(item) = self { return item.dateline }
+        return nil
+    }
 }
 
 // MARK: - 浏览记录
@@ -570,7 +576,10 @@ public struct TopicItem: Identifiable, Hashable {
         logo = json.logo.string.isEmpty ? json.pic.string : json.logo.string
         feedNum = json.feed_num.int
         followNum = json.follow_num.int
+        // 关注列表（followTagList / getFollowRows）不给 isFollowed，
+        // 只给 extraData 里的 showCancelFollowMenu，有它就说明这条话题已经关注了。
         isFollowed = json.isFollowed.int > 0 || json.follow.int > 0
+            || json.extraData.parsed.showCancelFollowMenu.int > 0
     }
 }
 

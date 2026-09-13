@@ -21,6 +21,8 @@ final class FeedListModel {
         case search(String, String)
         case appComments(String)
         case history(String)
+        /// 关注页的「所有内容」：关注的人 + 关注的话题两条流合并。
+        case followAll
         case collection(String)
         case collectionItems(String)
         case dyhArticles(String, String)
@@ -111,6 +113,12 @@ final class FeedListModel {
                 return try await API.rows(from: API.search(keyword: keyword, type: type, page: page))
             case let .appComments(id):
                 return try await API.appComments(id: id, page: page)
+            case .followAll:
+                // 接口按 `type` 把「关注的人」和「关注的话题」分成两条流，
+                // 各取同一页再按时间合并，才是关注页的「所有内容」。
+                async let users = API.pageFeed(pageName: API.followPageName, page: page, type: "circle")
+                async let topics = API.pageFeed(pageName: API.followPageName, page: page, type: "tag")
+                return Self.merged(try await users, try await topics)
             case let .history(kind):
                 return kind == "hit" ? try await API.hitHistory(page: page) : try await API.recentHistory(page: page)
             case let .collection(uid):
@@ -144,6 +152,17 @@ final class FeedListModel {
         if index >= rows.count - 3 {
             await load()
         }
+    }
+
+    /// 合并多条流：按时间倒序，同一条动态只留一份，卡片类行不进合并时间线。
+    private static func merged(_ streams: [HomeFeedRow]...) -> [HomeFeedRow] {
+        var seen = Set<String>()
+        var rows: [HomeFeedRow] = []
+        for row in streams.joined() {
+            guard case let .feed(item) = row, seen.insert(item.id).inserted else { continue }
+            rows.append(row)
+        }
+        return rows.sorted { ($0.date ?? .distantPast) > ($1.date ?? .distantPast) }
     }
 
     func replace(_ item: FeedItem) {

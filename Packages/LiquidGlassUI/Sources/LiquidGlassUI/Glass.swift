@@ -60,11 +60,13 @@ public struct GlassPillBar<Item: Identifiable>: View {
     public init(items: [Item], title: @escaping (Item) -> String,
         isSelected: @escaping (Item) -> Bool,
         icon: ((Item) -> String)? = nil,
+        scrollsToSelection: Bool = false,
         onSelect: @escaping (Item) -> Void) {
         self.items = items
         self.title = title
         self.isSelected = isSelected
         self.icon = icon
+        self.scrollsToSelection = scrollsToSelection
         self.onSelect = onSelect
     }
 
@@ -72,11 +74,45 @@ public struct GlassPillBar<Item: Identifiable>: View {
     public let title: (Item) -> String
     public let isSelected: (Item) -> Bool
     public var icon: ((Item) -> String)?
+    /// 选中项自动滚进可视范围。标签很多（比如关注页的几十个话题）时打开它。
+    public var scrollsToSelection = false
     public var onSelect: (Item) -> Void
 
     @Namespace private var namespace
+    /// 横向滚动位置，用来把选中的胶囊带进可视范围。
+    @State private var visibleID: Item.ID?
+
+    /// 当前选中项，用来做「选中就滚过去」。
+    private var selectedID: Item.ID? {
+        items.first(where: isSelected)?.id
+    }
 
     public var body: some View {
+        bar
+            .onAppear {
+                guard scrollsToSelection else { return }
+                handleSelection(animated: false)
+            }
+            .onChange(of: selectedID) { _, _ in
+                guard scrollsToSelection else { return }
+                handleSelection(animated: true)
+            }
+    }
+
+    private func handleSelection(animated: Bool) {
+        guard let id = selectedID else { return }
+        guard animated else {
+            // 视图刚出现时这一排还没布局完，等一帧再滚。
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 80_000_000)
+                visibleID = id
+            }
+            return
+        }
+        withAnimation(.snappy(duration: 0.25)) { visibleID = id }
+    }
+
+    private var bar: some View {
         ScrollView(.horizontal) {
             GlassEffectContainer(spacing: 6) {
                 HStack(spacing: 6) {
@@ -112,8 +148,10 @@ public struct GlassPillBar<Item: Identifiable>: View {
             }
             .padding(.horizontal, Metrics.gutter - 4)
             .padding(.vertical, 8)
+            .scrollTargetLayout()
         }
         .scrollIndicators(.hidden)
+        .scrollPosition(id: $visibleID, anchor: .center)
     }
 }
 
