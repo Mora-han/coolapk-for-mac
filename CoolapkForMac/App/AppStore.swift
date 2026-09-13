@@ -106,15 +106,75 @@ final class AppStore {
     // Navigation
     var selection: NavItem? = .home {
         didSet {
-            guard !suppressHistory, let value = selection, value != oldValue else { return }
-            if let previous = oldValue { history.append(previous) }
-            if history.count > 80 { history.removeFirst(history.count - 80) }
-            future.removeAll()
+            guard let value = selection, value != oldValue else { return }
+            // 离开搜索页时记下的是搜索页这一帧（而不是它底下的页面），后退才能回到结果列表。
+            record(NavFrame(item: oldValue ?? value, search: showSearch))
+            showSearch = false
         }
     }
-    private(set) var history: [NavItem] = []
-    private(set) var future: [NavItem] = []
+
+    /// 一帧可回退的界面状态：某个页面，或覆盖在页面上的搜索结果。
+    struct NavFrame: Equatable {
+        var item: NavItem?
+        var search: Bool
+    }
+
+    private(set) var history: [NavFrame] = []
+    private(set) var future: [NavFrame] = []
     private var suppressHistory = false
+
+    private func record(_ frame: NavFrame) {
+        guard !suppressHistory else { return }
+        history.append(frame)
+        if history.count > 80 { history.removeFirst(history.count - 80) }
+        future.removeAll()
+    }
+
+    private var currentFrame: NavFrame {
+        NavFrame(item: selection, search: showSearch)
+    }
+
+    private func apply(_ frame: NavFrame) {
+        suppressHistory = true
+        selection = frame.item
+        showSearch = frame.search
+        suppressHistory = false
+        // 搜索页靠 @State 存结果，重建后用它重新跑一次上次的关键词。
+        if frame.search { searching = !searchText.isEmpty }
+    }
+
+    /// 侧栏 / 工具栏的显式跳转：目标就是当前页面时也要离开搜索页，否则点侧栏像没反应。
+    func navigate(to item: NavItem) {
+        guard item != selection else {
+            guard showSearch else { return }
+            record(NavFrame(item: item, search: true))
+            showSearch = false
+            return
+        }
+        selection = item
+    }
+
+    /// 打开搜索页（先记一帧当前页面，⌘[ 可以退回来）。
+    func enterSearch() {
+        guard !showSearch else { return }
+        record(NavFrame(item: selection, search: false))
+        showSearch = true
+    }
+
+    /// 关闭搜索页（清空搜索框、按 Esc 取消时），并把搜索页记进历史。
+    func exitSearch() {
+        guard showSearch else { return }
+        record(NavFrame(item: selection, search: true))
+        suppressHistory = true
+        showSearch = false
+        suppressHistory = false
+    }
+
+    /// 提交搜索：切到搜索页并让它跑一次关键词。
+    func submitSearch() {
+        enterSearch()
+        searching = !searchText.isEmpty
+    }
     var selectedFeed: FeedItem?
     var searchText = ""
     var searching = false
@@ -253,7 +313,7 @@ final class AppStore {
 
     func searchDevice(_ name: String) {
         searchText = name
-        searching = true
+        submitSearch()
     }
 
     /// Routes a link tapped inside a dynamic.
@@ -427,18 +487,15 @@ final class AppStore {
 
     func goBack() {
         guard let previous = history.popLast() else { return }
-        if let current = selection { future.append(current) }
-        suppressHistory = true
-        selection = previous
-        suppressHistory = false
+        future.append(currentFrame)
+        apply(previous)
     }
 
     func goForward() {
         guard let next = future.popLast() else { return }
-        if let current = selection { history.append(current) }
-        suppressHistory = true
-        selection = next
-        suppressHistory = false
+        history.append(currentFrame)
+        if history.count > 80 { history.removeFirst(history.count - 80) }
+        apply(next)
     }
 
     /// 当前页面标题，用于窗口标题与工具栏。
@@ -492,8 +549,7 @@ final class AppStore {
         case "nav": selection = builtinSection(named: value)
         case "search":
             searchText = value
-            showSearch = true
-            searching = true
+            submitSearch()
         default: break
         }
     }

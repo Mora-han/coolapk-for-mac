@@ -6,7 +6,6 @@ import LiquidGlassUI
 struct SearchView: View {
     @Environment(AppStore.self) private var store
 
-    @State private var keyword = ""
     @State private var type: ResultType = .feeds
     @State private var results: [HomeFeedRow] = []
     @State private var users: [UserBrief] = []
@@ -19,6 +18,10 @@ struct SearchView: View {
     @State private var finished = false
     @State private var submitted: String?
     @State private var error: String?
+    /// 边打边搜的防抖任务：连续输入时只发最后一次请求。
+    @State private var pendingSearch: Task<Void, Never>?
+    /// 点过候选词后不要再弹候选，等下一次真实输入。
+    @State private var muteSuggestions = false
     /// 结果卡片按所在栏的实际宽度排版，不写死宽度。
     @State private var rowWidth: CGFloat = 320
 
@@ -37,79 +40,46 @@ struct SearchView: View {
         }
     }
 
-    var body: some View {
-        VStack(spacing: 0) {
-            searchBar
-            Divider()
-            content
-        }
-        .task {
-            if hotWords.isEmpty {
-                hotWords = (try? await API.hotSearchWords()) ?? []
-            }
-            // 带着关键词进来时（工具栏搜索框提交、调试入口）直接出结果。
-            if store.searching, !store.searchText.isEmpty {
-                keyword = store.searchText
-                search()
-                store.searching = false
-            }
-        }
-        .onChange(of: store.searching) { _, newValue in
-            if newValue, !store.searchText.isEmpty {
-                keyword = store.searchText
-                search()
-                store.searching = false
-            }
-        }
-    }
+    /// 关键词只有一处来源：侧栏左上角的搜索框。
+    private var keyword: String { store.searchText }
 
-    private var searchBar: some View {
-        HStack(spacing: 10) {
-            HStack(spacing: 6) {
-                Image(systemName: "magnifyingglass").foregroundStyle(.secondary).font(.system(size: 12.5))
-                TextField("搜索酷安、用户、话题", text: $keyword)
-                    .textFieldStyle(.plain)
-                    .font(.system(size: 13))
-                    .onSubmit { search() }
-                    .onChange(of: keyword) { _, value in
-                        Task { await loadSuggestions(value) }
-                    }
-                if !keyword.isEmpty {
-                    Button {
-                        keyword = ""
-                        suggestions = []
-                    } label: {
-                        Image(systemName: "xmark.circle.fill").foregroundStyle(.tertiary)
-                    }
-                    .buttonStyle(.plain)
+    var body: some View {
+        content
+            .task {
+                if hotWords.isEmpty {
+                    hotWords = (try? await API.hotSearchWords()) ?? []
+                }
+                // 带着关键词进来时（侧栏搜索框提交、调试入口）直接出结果。
+                if store.searching, !keyword.isEmpty {
+                    pendingSearch?.cancel()
+                    search(recordHistory: true)
+                    store.searching = false
                 }
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 7)
-            .background(Color.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-            .frame(maxWidth: 420)
-
-            Button("搜索") { search() }
-                .buttonStyle(.borderedProminent)
-                .tint(Palette.brand)
-                .controlSize(.regular)
-                .disabled(keyword.trimmingCharacters(in: .whitespaces).isEmpty)
-            Spacer()
-        }
-        .padding(.horizontal, 18)
-        .padding(.vertical, 12)
+            .onChange(of: store.searching) { _, newValue in
+                if newValue, !keyword.isEmpty {
+                    pendingSearch?.cancel()
+                    search(recordHistory: true)
+                    store.searching = false
+                }
+            }
+            .onChange(of: store.searchText) { _, value in
+                muteSuggestions = false
+                scheduleSearch()
+                Task { await loadSuggestions(value) }
+            }
     }
 
     @ViewBuilder
     private var content: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
-                if !suggestions.isEmpty, submitted == nil {
-                    suggestionList
-                } else if submitted == nil {
+                if keyword.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     if !history.isEmpty { chipSection(title: "搜索历史", items: history, clearable: true) }
                     if !hotWords.isEmpty { chipSection(title: "酷安热搜", items: hotWords, clearable: false) }
                 } else {
+                    // 候选词排在结果上方，选一个就搜它。
+                    if !suggestions.isEmpty { suggestionList }
                     resultsSection
                 }
             }
@@ -121,8 +91,10 @@ struct SearchView: View {
     }
 
     private var suggestionList: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            ForEach(suggestions, id: \.self) { word in
+        // 候选词最多显示几条，别把底下的结果挤到屏幕外。
+        let shown = Array(suggestions.prefix(6))
+        return VStack(alignment: .leading, spacing: 2) {
+            ForEach(shown, id: \.self) { word in
                 HStack(spacing: 8) {
                     Image(systemName: "magnifyingglass").font(.system(size: 11)).foregroundStyle(.tertiary)
                     Text(word).font(.system(size: 13))
@@ -133,8 +105,7 @@ struct SearchView: View {
                 .padding(.vertical, 7)
                 .contentShape(Rectangle())
                 .onTapGesture {
-                    keyword = word
-                    search()
+                    submit(word)
                 }
             }
         }
@@ -157,8 +128,7 @@ struct SearchView: View {
                 }
             }
             FlowChips(items: items) { word in
-                keyword = word
-                search()
+                submit(word)
             }
         }
         .padding(14)
@@ -167,6 +137,13 @@ struct SearchView: View {
 
     @ViewBuilder
     private var resultsSection: some View {
+        HStack(spacing: 8) {
+            Text("「\(submitted ?? keyword)」的搜索结果")
+                .font(.system(size: 13.5, weight: .semibold))
+                .lineLimit(1)
+            Spacer()
+        }
+
         Picker("", selection: $type) {
             ForEach(ResultType.allCases) { item in
                 Text(item.rawValue).tag(item)
@@ -174,20 +151,31 @@ struct SearchView: View {
         }
         .pickerStyle(.segmented)
         .labelsHidden()
-        .onChange(of: type) { _, _ in search() }
+        .onChange(of: type) { _, _ in
+            guard !keyword.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+            pendingSearch?.cancel()
+            search()
+        }
 
         if loading, results.isEmpty, users.isEmpty, topics.isEmpty {
             LoadingRow(text: "正在搜索…")
-        } else if let error {
-            ErrorBanner(message: error) { search() }
         } else {
+            // 已经有结果时，错误挂在列表上方显示，不再把结果整块换掉（加载下一页失败会看不到列表）。
+            if let error {
+                ErrorBanner(message: error) { search() }
+            }
             switch type {
             case .feeds:
+                if results.isEmpty, error == nil {
+                    EmptyStateView(title: "没有找到相关动态", systemImage: "text.magnifyingglass").frame(height: 200)
+                }
                 ForEach(results) { row in
                     FeedRowView(row: row, width: max(200, rowWidth - 36), model: FeedListModel(source: .search(submitted ?? "", "feed")))
                 }
             case .users:
-                if users.isEmpty { EmptyStateView(title: "没有找到相关用户", systemImage: "person.slash").frame(height: 200) }
+                if users.isEmpty, error == nil {
+                    EmptyStateView(title: "没有找到相关用户", systemImage: "person.slash").frame(height: 200)
+                }
                 ForEach(users) { user in
                     HStack(spacing: 12) {
                         AvatarView(url: user.avatar, size: 44)
@@ -198,6 +186,9 @@ struct SearchView: View {
                             }
                         }
                         Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.tertiary)
                     }
                     .padding(12)
                     .cardBackground(cornerRadius: 14)
@@ -205,7 +196,9 @@ struct SearchView: View {
                     .onTapGesture { store.openUser(user.id) }
                 }
             case .topics:
-                if topics.isEmpty { EmptyStateView(title: "没有找到相关话题", systemImage: "number").frame(height: 200) }
+                if topics.isEmpty, error == nil {
+                    EmptyStateView(title: "没有找到相关话题", systemImage: "number").frame(height: 200)
+                }
                 ForEach(topics) { topic in
                     HStack(spacing: 12) {
                         RemoteImage(url: topic.logo, maxPixel: 200, contentMode: .fill, cornerRadius: 10)
@@ -217,6 +210,9 @@ struct SearchView: View {
                             }
                         }
                         Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.tertiary)
                     }
                     .padding(12)
                     .cardBackground(cornerRadius: 14)
@@ -226,24 +222,66 @@ struct SearchView: View {
             }
 
             if !finished, !(results.isEmpty && users.isEmpty && topics.isEmpty) {
-                Button("加载更多") { loadMore() }
-                    .buttonStyle(.link)
-                    .frame(maxWidth: .infinity)
+                loadMoreButton
             }
         }
     }
 
-    private func search() {
+    /// 加载下一页。整行都能点，等待期间给出转圈与文案，避免看着像没反应。
+    private var loadMoreButton: some View {
+        Button {
+            loadMore()
+        } label: {
+            HStack(spacing: 6) {
+                if loading {
+                    ProgressView().controlSize(.small)
+                }
+                Text(loading ? "正在加载…" : "加载更多")
+                    .font(.system(size: 12.5, weight: .medium))
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 9)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(Palette.brand)
+        .background(Color.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .disabled(loading)
+    }
+
+    /// 从候选词 / 历史 / 热搜里选一个词：写回侧栏搜索框并立刻出结果。
+    private func submit(_ word: String) {
+        pendingSearch?.cancel()
+        muteSuggestions = true
+        suggestions = []
+        store.searchText = word
+        store.submitSearch()
+    }
+
+    /// 边打边搜：停顿一下再发请求，打字过程中不打断输入。
+    private func scheduleSearch() {
+        let word = keyword.trimmingCharacters(in: .whitespacesAndNewlines)
+        pendingSearch?.cancel()
+        guard !word.isEmpty else { return }
+        pendingSearch = Task {
+            try? await Task.sleep(nanoseconds: 350_000_000)
+            guard !Task.isCancelled else { return }
+            search()
+        }
+    }
+
+    /// 搜一次关键词。`recordHistory` 只在「真的搜了」时记（回车 / 点候选词），
+    /// 边打边搜的中间状态不进历史。
+    private func search(recordHistory: Bool = false) {
         let word = keyword.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !word.isEmpty else { return }
         submitted = word
-        suggestions = []
         page = 1
         finished = false
         results = []
         users = []
         topics = []
-        if !history.contains(word) {
+        if recordHistory, !history.contains(word) {
             history.insert(word, at: 0)
             history = Array(history.prefix(12))
             UserDefaults.standard.set(history, forKey: "search.history")
@@ -252,6 +290,7 @@ struct SearchView: View {
     }
 
     private func loadMore() {
+        guard !loading, !finished, submitted != nil else { return }
         page += 1
         Task { await performSearch() }
     }
@@ -265,11 +304,14 @@ struct SearchView: View {
             switch type {
             case .feeds:
                 let rows = try API.rows(from: items)
-                results.append(contentsOf: rows)
+                let known = Set(results.map(\.id))
+                results.append(contentsOf: rows.filter { !known.contains($0.id) })
             case .users:
-                users.append(contentsOf: items.map { UserBrief(json: $0) })
+                let known = Set(users.map(\.id))
+                users.append(contentsOf: items.map { UserBrief(json: $0) }.filter { !known.contains($0.id) })
             case .topics:
-                topics.append(contentsOf: items.map { TopicItem(json: $0) })
+                let known = Set(topics.map(\.id))
+                topics.append(contentsOf: items.map { TopicItem(json: $0) }.filter { !known.contains($0.id) })
             }
             if items.isEmpty { finished = true }
             error = nil
@@ -280,10 +322,11 @@ struct SearchView: View {
 
     private func loadSuggestions(_ value: String) async {
         let word = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard word.count >= 1, submitted == nil else {
+        guard word.count >= 1 else {
             suggestions = []
             return
         }
+        guard !muteSuggestions else { return }
         try? await Task.sleep(nanoseconds: 220_000_000)
         suggestions = (try? await API.suggestWords(keyword: word)) ?? []
     }

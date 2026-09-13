@@ -490,9 +490,8 @@ struct FeedCardView: View {
                 textBody
             }
             if !item.pics.isEmpty {
-                FeedMediaGrid(images: item.pics, width: textWidth, quality: store.usesHighQualityImages ? 2 : 1) { index in
-                    store.viewer = ViewerState(images: item.pics, index: index, title: item.username)
-                }
+                // 列表里的图片不单独响应点击：点一下和点卡片一样进详情，图片只在详情页里查看。
+                FeedMediaGrid(images: item.pics, width: textWidth, quality: store.usesHighQualityImages ? 2 : 1)
             }
             if !item.targetTitle.isEmpty {
                 FeedTargetCard(item: item)
@@ -668,7 +667,8 @@ struct FeedMediaGrid: View {
     let images: [String]
     let width: CGFloat
     var quality: Int = 2
-    var onOpen: (Int) -> Void
+    /// 传了才响应点击；信息流里不传，让点击落到卡片上（打开详情）。
+    var onOpen: ((Int) -> Void)?
 
     private let spacing: CGFloat = 6
 
@@ -686,8 +686,9 @@ struct FeedMediaGrid: View {
             maxWidth: width,
             maxHeight: min(width * 1.1, 460),
             mode: .crop,
-            quality: quality
-        ) { onOpen(0) }
+            quality: quality,
+            onTap: onOpen.map { open in { open(0) } }
+        )
     }
 
     private var columns: Int {
@@ -705,13 +706,22 @@ struct FeedMediaGrid: View {
     private var grid: some View {
         LazyVGrid(columns: Array(repeating: GridItem(.fixed(cellSize), spacing: spacing), count: columns), spacing: spacing) {
             ForEach(Array(images.enumerated()), id: \.offset) { index, url in
-                RemoteImage(url: url, maxPixel: 900, contentMode: .fill, cornerRadius: 10, quality: quality)
-                    .frame(width: cellSize, height: cellSize)
-                    .clipped()
-                    .onTapGesture { onOpen(index) }
+                cell(url, index: index)
             }
         }
         .frame(width: width, alignment: .leading)
+    }
+
+    @ViewBuilder
+    private func cell(_ url: String, index: Int) -> some View {
+        let image = RemoteImage(url: url, maxPixel: 900, contentMode: .fill, cornerRadius: 10, quality: quality)
+            .frame(width: cellSize, height: cellSize)
+            .clipped()
+        if let onOpen {
+            image.onTapGesture { onOpen(index) }
+        } else {
+            image
+        }
     }
 }
 
@@ -756,6 +766,8 @@ struct FeedTargetCard: View {
 
 struct ForwardedCard: View {
     let item: ForwardedContent
+    /// 转发内容的图片：详情页里传查看大图，信息流里不传（点击落到卡片上，进详情）。
+    var onOpenImage: ((Int) -> Void)?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -772,7 +784,7 @@ struct ForwardedCard: View {
                 )
             }
             if !item.pics.isEmpty {
-                FeedMediaGrid(images: Array(item.pics.prefix(3)), width: 240, quality: 1, onOpen: { _ in })
+                FeedMediaGrid(images: Array(item.pics.prefix(3)), width: 240, quality: 1, onOpen: onOpenImage)
                     .frame(width: 240)
             }
         }

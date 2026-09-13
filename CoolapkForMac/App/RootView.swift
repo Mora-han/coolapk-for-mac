@@ -7,6 +7,9 @@ struct RootView: View {
     @Environment(AppStore.self) private var store
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
     @State private var contentModel: FeedListModel?
+    /// 搜索框是否正在输入：点进搜索框或开始打字才切到搜索页，
+    /// 不然系统恢复的旧关键词会让 App 一启动就停在搜索页。
+    @FocusState private var searchFocused: Bool
 
     var body: some View {
         @Bindable var store = store
@@ -48,18 +51,9 @@ struct RootView: View {
                 .help("发布动态")
 
                 ToolbarGlassButton(systemImage: "bell", help: "消息", badge: store.badge.total) {
-                    store.selection = .notifications
+                    store.navigate(to: .notifications)
                 }
-
             }
-        }
-        .searchable(text: $store.searchText, placement: .toolbar, prompt: "搜索动态、用户、话题")
-        .onSubmit(of: .search) {
-            store.searching = true
-            store.showSearch = true
-        }
-        .onChange(of: store.searchText) { _, value in
-            if value.isEmpty { store.showSearch = false }
         }
         .sheet(isPresented: $store.loginSheetPresented) { LoginSheet() }
         .sheet(isPresented: $store.showCompose) { ComposeSheet() }
@@ -102,12 +96,35 @@ struct RootView: View {
     /// 侧边栏用 AppKit 的 source list 承载：选中态是系统的半透明覆盖层，
     /// 和访达 / App Store 一致（SwiftUI 的 List 只能画强调色实心高亮）。
     private var sidebar: some View {
-        VStack(spacing: 0) {
+        @Bindable var store = store
+        return VStack(spacing: 0) {
             SourceListSidebar(sections: sidebarSections, selection: store.selection) { item in
-                store.selection = item
+                store.navigate(to: item)
             }
             Divider()
             accountRow
+        }
+        // 搜索框固定在侧栏左上角（和 App Store 一样），内容列只负责显示结果。
+        .searchable(text: $store.searchText, placement: .sidebar, prompt: "搜索动态、用户、话题")
+        .searchFocused($searchFocused)
+        .onSubmit(of: .search) {
+            store.submitSearch()
+        }
+        .onChange(of: searchFocused) { _, focused in
+            if focused { store.enterSearch() }
+        }
+        .onChange(of: store.showSearch) { _, showing in
+            // 侧栏点走以后把焦点状态复位，否则 SwiftUI 以为搜索框还focus着，
+            // 再点一次不会触发变化，看起来像点不动。
+            if !showing { searchFocused = false }
+        }
+        .onChange(of: store.searchText) { _, value in
+            // 一开始输入就切到搜索页：候选词、历史、热搜都在内容列里跟着变。
+            if value.isEmpty {
+                store.exitSearch()
+            } else {
+                store.enterSearch()
+            }
         }
         .navigationSplitViewColumnWidth(min: 186, ideal: 202, max: 250)
     }
@@ -116,7 +133,7 @@ struct RootView: View {
     private var accountRow: some View {
         Button {
             if store.isLoggedIn {
-                store.selection = .me
+                store.navigate(to: .me)
             } else {
                 store.loginSheetPresented = true
             }
@@ -166,7 +183,6 @@ struct RootView: View {
     private var accountSubtitle: String {
         store.isLoggedIn ? "ID: \(store.uid)" : "未登录"
     }
-
 
     private var sidebarSections: [SourceListSidebar<NavItem>.Section] {
         var sections: [SourceListSidebar<NavItem>.Section] = [

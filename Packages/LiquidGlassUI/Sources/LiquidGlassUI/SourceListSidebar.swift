@@ -205,6 +205,11 @@ public struct SourceListSidebar<Value: Hashable>: NSViewRepresentable {
                   tableView.selectedRow < entries.count,
                   case let .item(row) = entries[tableView.selectedRow]
             else { return }
+            // 点侧栏等于「离开输入」：把 first responder 从搜索框收回列表。
+            // 否则搜索框一直握着焦点，再次点它不会产生焦点变化，界面像没反应。
+            if let window = tableView.window, window.firstResponder !== tableView {
+                window.makeFirstResponder(tableView)
+            }
             parent.onSelect(row.value)
         }
     }

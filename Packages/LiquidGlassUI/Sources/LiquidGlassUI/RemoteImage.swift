@@ -129,6 +129,19 @@ public struct AdaptiveRemoteImage: View {
     }
 
     public var body: some View {
+        // 没有点击处理时不要挂手势：`onTapGesture` 会吃掉点击，让卡片自己的点击（进详情）失效。
+        Group {
+            if let onTap {
+                content.contentShape(Rectangle()).onTapGesture(perform: onTap)
+            } else {
+                content
+            }
+        }
+        .animation(.snappy(duration: 0.2), value: image != nil)
+        .task(id: url) { await load() }
+    }
+
+    private var content: some View {
         Group {
             if let image {
                 Image(nsImage: image)
@@ -171,12 +184,8 @@ public struct AdaptiveRemoteImage: View {
                     .transition(.opacity)
             }
         }
-        .contentShape(Rectangle())
-        .onTapGesture { onTap?() }
         .onHover { hovering = $0 }
         .animation(.snappy(duration: 0.16), value: hovering)
-        .animation(.snappy(duration: 0.2), value: image != nil)
-        .task(id: url) { await load() }
     }
 
     private func load() async {

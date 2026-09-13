@@ -106,7 +106,11 @@ struct FeedDetailView: View {
                 detailMedia
             }
             if !item.targetTitle.isEmpty { FeedTargetCard(item: item) }
-            if let source = item.sourceFeed { ForwardedCard(item: source) }
+            if let source = item.sourceFeed {
+                ForwardedCard(item: source) { index in
+                    store.viewer = ViewerState(images: source.pics, index: index, title: source.username)
+                }
+            }
 
             Divider().padding(.vertical, 2)
             statsRow

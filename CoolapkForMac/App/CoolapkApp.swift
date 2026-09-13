@@ -18,7 +18,7 @@ struct CoolapkApp: App {
             CommandGroup(replacing: .newItem) {
                 Button("发布动态") { store.showCompose = true }
                     .keyboardShortcut("n", modifiers: .command)
-                Button("搜索") { store.showSearch = true }
+                Button("搜索") { store.enterSearch() }
                     .keyboardShortcut("f", modifiers: .command)
                 Button("刷新") {
                     store.refreshBadge()
@@ -30,7 +30,7 @@ struct CoolapkApp: App {
                     .keyboardShortcut("[", modifiers: .command)
                 Button("前进") { store.goForward() }
                     .keyboardShortcut("]", modifiers: .command)
-                Button("回到首页") { store.selection = .home }
+                Button("回到首页") { store.navigate(to: .home) }
                     .keyboardShortcut("1", modifiers: [.command, .shift])
             }
             CommandGroup(after: .appInfo) {
