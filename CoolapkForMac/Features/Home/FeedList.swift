@@ -10,6 +10,7 @@ import LiquidGlassUI
 final class FeedListModel {
     enum Source: Hashable {
         case home
+        case headline
         case page(String, String?)
         case user(String)
         case topic(String)
@@ -32,6 +33,8 @@ final class FeedListModel {
     let source: Source
     var rows: [HomeFeedRow] = []
     var isLoading = false
+    /// 首次加载是否已经跑过，用来区分「还没开始加载」和「真的没有内容」。
+    var hasLoaded = false
     var finished = false
     var error: String?
     var page = 1
@@ -50,47 +53,19 @@ final class FeedListModel {
         }
         guard !finished else { return }
         isLoading = true
-        defer { isLoading = false }
+        defer {
+            isLoading = false
+            hasLoaded = true
+        }
 
         do {
-            let loaded: [HomeFeedRow]
-            switch source {
-            case .home:
-                loaded = try await API.homeFeed(page: page)
-            case let .page(name, type):
-                loaded = try await API.pageFeed(pageName: name, page: page, type: type)
-            case let .user(uid):
-                loaded = try await API.userFeeds(uid: uid, page: page)
-            case let .topic(tag):
-                loaded = try await API.topicFeeds(tag: tag, page: page)
-            case let .search(keyword, type):
-                loaded = try await API.rows(from: API.search(keyword: keyword, type: type, page: page))
-            case let .appComments(id):
-                loaded = try await API.appComments(id: id, page: page)
-            case let .history(kind):
-                loaded = kind == "hit" ? try await API.hitHistory(page: page) : try await API.recentHistory(page: page)
-            case let .collection(uid):
-                let items = try await API.collectionList(uid: uid.isEmpty ? nil : uid, page: page)
-                loaded = try API.rows(from: items)
-            case let .collectionItems(id):
-                loaded = try await API.collectionItems(id: id, page: page)
-            case let .dyhArticles(id, type):
-                loaded = try await API.dyhArticles(id: id, page: page, type: type)
-            case let .questionAnswers(id, sort):
-                loaded = try await API.questionAnswers(id: id, page: page, sort: sort)
-            case let .voteComments(fid):
-                loaded = try await API.voteComments(fid: fid, page: page)
-            case let .device(tag):
-                loaded = try await API.deviceFeeds(tag: tag, page: page)
-            case let .forwards(id):
-                loaded = try await API.forwardList(feedID: id, page: page)
-            case let .likes(uid):
-                loaded = try await API.userLikeFeeds(uid: uid, page: page)
-            case let .changeHistory(id):
-                loaded = try await API.changeHistory(feedID: id)
-                finished = true
-            case let .rawLink(link):
-                loaded = try await API.linkFeed(link: link, page: page)
+            var loaded = try await fetch(page: page)
+            // 服务端偶尔对首屏返回「成功但空」的响应（`{"data":[]}`），
+            // 直接判定为空会看到凭空出现的空页面，这里再取一次。
+            if loaded.isEmpty, page == 1, !finished {
+                try? await Task.sleep(nanoseconds: 600_000_000)
+                loaded = try await fetch(page: page)
+                DebugHooks.log("retry \(source) page 1 -> \(loaded.count) rows")
             }
 
             if reset { rows = [] }
@@ -109,6 +84,50 @@ final class FeedListModel {
         } catch {
             self.error = error.localizedDescription
             DebugHooks.log("load \(source) page \(page) failed: \(error)")
+        }
+    }
+
+    private func fetch(page: Int) async throws -> [HomeFeedRow] {
+        switch source {
+            case .home:
+                return try await API.homeFeed(page: page)
+            case .headline:
+                return try await API.headlineFeed(page: page)
+            case let .page(name, type):
+                return try await API.pageFeed(pageName: name, page: page, type: type)
+            case let .user(uid):
+                return try await API.userFeeds(uid: uid, page: page)
+            case let .topic(tag):
+                return try await API.topicFeeds(tag: tag, page: page)
+            case let .search(keyword, type):
+                return try await API.rows(from: API.search(keyword: keyword, type: type, page: page))
+            case let .appComments(id):
+                return try await API.appComments(id: id, page: page)
+            case let .history(kind):
+                return kind == "hit" ? try await API.hitHistory(page: page) : try await API.recentHistory(page: page)
+            case let .collection(uid):
+                let items = try await API.collectionList(uid: uid.isEmpty ? nil : uid, page: page)
+                return try API.rows(from: items)
+            case let .collectionItems(id):
+                return try await API.collectionItems(id: id, page: page)
+            case let .dyhArticles(id, type):
+                return try await API.dyhArticles(id: id, page: page, type: type)
+            case let .questionAnswers(id, sort):
+                return try await API.questionAnswers(id: id, page: page, sort: sort)
+            case let .voteComments(fid):
+                return try await API.voteComments(fid: fid, page: page)
+            case let .device(tag):
+                return try await API.deviceFeeds(tag: tag, page: page)
+            case let .forwards(id):
+                return try await API.forwardList(feedID: id, page: page)
+            case let .likes(uid):
+                return try await API.userLikeFeeds(uid: uid, page: page)
+            case let .changeHistory(id):
+                let loaded = try await API.changeHistory(feedID: id)
+                finished = true
+                return loaded
+            case let .rawLink(link):
+                return try await API.linkFeed(link: link, page: page)
         }
     }
 
@@ -169,8 +188,9 @@ struct FeedListView: View {
             }
             }
         }
-        // 按数据源而不是视图身份触发加载：首页切换 Tab 时视图不会重建。
-        .task(id: model.source) { if model.isEmpty { await model.load() } }
+        // 按模型实例触发加载：切换 Tab 时视图不会重建，但模型会被替换，
+        // 只比较 source 会漏掉「新实例还没加载」的情况。
+        .task(id: ObjectIdentifier(model)) { if model.isEmpty { await model.load() } }
         .task(id: store.reloadToken) {
             guard !model.isEmpty else { return }
             await model.load(reset: true)
@@ -188,7 +208,7 @@ struct FeedListView: View {
 
     @ViewBuilder
     private func content(width: CGFloat) -> some View {
-        if model.isEmpty, !model.isLoading {
+        if model.isEmpty, !model.isLoading, model.hasLoaded {
             EmptyStateView(title: emptyMessage, systemImage: "text.bubble")
                 .frame(height: 320)
         } else {
@@ -201,7 +221,7 @@ struct FeedListView: View {
 
     @ViewBuilder
     private var footer: some View {
-        if model.isLoading {
+        if model.isLoading || (model.isEmpty && !model.hasLoaded) {
             LoadingRow()
         } else if model.finished, !model.isEmpty {
             Text("没有更多了")
@@ -556,11 +576,19 @@ struct FeedMediaGrid: View {
         return (width - spacing * (count - 1)) / count
     }
 
+    /// 竖图为主时把格子加高，避免 9:19.5 的手机截图被正方形裁掉大半。
+    private var cellHeight: CGFloat {
+        guard images.count > 1, aspectList.count == images.count, !aspectList.isEmpty else { return cellSize }
+        let median = aspectList.sorted()[aspectList.count / 2]
+        guard median < 1 else { return cellSize }
+        return cellSize / max(median, 0.5)
+    }
+
     private var grid: some View {
         LazyVGrid(columns: Array(repeating: GridItem(.fixed(cellSize), spacing: spacing), count: columns), spacing: spacing) {
             ForEach(Array(images.enumerated()), id: \.offset) { index, url in
                 RemoteImage(url: url, maxPixel: 900, contentMode: .fill, cornerRadius: 10, quality: quality)
-                    .frame(width: cellSize, height: cellSize)
+                    .frame(width: cellSize, height: cellHeight)
                     .clipped()
                     .onTapGesture { onOpen(index) }
             }

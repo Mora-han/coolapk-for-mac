@@ -20,6 +20,16 @@ public enum APIError: LocalizedError {
     }
 }
 
+/// 请求日志出口，由宿主注入（应用层只在开了 `COOLAPK_DEBUG=1` 时接管），
+/// 这样包本身不依赖任何调试开关。
+public enum CoolapkLog {
+    public nonisolated(unsafe) static var sink: ((String) -> Void)?
+
+    static func log(_ message: @autoclosure () -> String) {
+        sink?(message())
+    }
+}
+
 /// Sends signed requests to `api.coolapk.com`.
 public actor CoolapkClient {
     public static let shared = CoolapkClient()
@@ -191,6 +201,11 @@ public actor CoolapkClient {
                 attempt += 1
                 invalidateToken()
                 continue
+            }
+            let query = parameters.map { "\($0.key)=\($0.value)" }.sorted().joined(separator: "&")
+            CoolapkLog.log("\(method) \(path)?\(query) -> status \(status) data \(json.data.array.count) message \(json.message.string)")
+            if json.data.array.isEmpty, !json.data.isObject {
+                CoolapkLog.log("  \(path) payload: \(String(data: data, encoding: .utf8)?.prefix(400) ?? "")")
             }
             return json
         }

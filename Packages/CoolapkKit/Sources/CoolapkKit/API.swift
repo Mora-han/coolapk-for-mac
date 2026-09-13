@@ -35,6 +35,12 @@ public enum API {
         return try rows(from: json.data.array)
     }
 
+    /// 头条信息流（`/v6/main/headline`），与首页推荐流是两套内容。
+    public static func headlineFeed(page: Int) async throws -> [HomeFeedRow] {
+        let json = try await client.get("/v6/main/headline", ["page": String(page), "t": String(Int(Date().timeIntervalSince1970))])
+        return try rows(from: json.data.array)
+    }
+
     /// Generic page timeline, used by "关注", "热榜", "话题" and friends.
     public static func pageFeed(pageName: String, page: Int, type: String? = nil) async throws -> [HomeFeedRow] {
         var extra: [String: String] = [:]

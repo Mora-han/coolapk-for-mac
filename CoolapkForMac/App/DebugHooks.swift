@@ -1,4 +1,5 @@
 import Foundation
+import CoolapkKit
 
 /// 仅用于自动化截图与回归测试的环境变量入口。
 ///
@@ -8,6 +9,12 @@ import Foundation
 /// - `COOLAPK_TAB`：指定首页 Tab 的 pageName
 /// - `COOLAPK_SCROLL`：列表加载完成后滚动到第 N 行（从 0 开始）
 enum DebugHooks {
+    /// 把包里的请求日志接到同一个出口，命令行排查时能看到服务端返回了什么。
+    static func installLogSink() {
+        guard isVerbose else { return }
+        CoolapkLog.sink = { log($0) }
+    }
+
     static var homeTab: String? {
         let value = ProcessInfo.processInfo.environment["COOLAPK_TAB"]
         return (value?.isEmpty == false) ? value : nil
@@ -15,10 +22,28 @@ enum DebugHooks {
 
     static let isVerbose = ProcessInfo.processInfo.environment["COOLAPK_DEBUG"] == "1"
 
-    /// 打开 `COOLAPK_DEBUG=1` 时把请求与错误打到标准错误，便于命令行排查。
+    /// 打开 `COOLAPK_DEBUG=1` 时把请求与错误打到标准错误，便于命令行排查；
+    /// 再给一个 `COOLAPK_LOG_FILE=/tmp/coolapk.log` 时同时追加写入文件，
+    /// 因为用 `open` 启动的窗口应用读不到标准错误。
     static func log(_ message: @autoclosure () -> String) {
         guard isVerbose else { return }
-        FileHandle.standardError.write(Data(("coolapk: " + message() + "\n").utf8))
+        let text = "coolapk: " + message() + "\n"
+        FileHandle.standardError.write(Data(text.utf8))
+        // 应用开了沙盒，容器外的路径（比如 /tmp）写不进去，统一回落到容器内的临时目录。
+        let requested = ProcessInfo.processInfo.environment["COOLAPK_LOG_FILE"]
+        let fallback = NSTemporaryDirectory() + "coolapk-debug.log"
+        let path = (requested?.isEmpty == false) ? requested! : fallback
+        append(text, to: path) || append(text, to: fallback)
+    }
+
+    private static func append(_ text: String, to path: String) -> Bool {
+        if let handle = FileHandle(forWritingAtPath: path) {
+            handle.seekToEndOfFile()
+            handle.write(Data(text.utf8))
+            try? handle.close()
+            return true
+        }
+        return (try? text.write(toFile: path, atomically: true, encoding: .utf8)) != nil
     }
 }
 

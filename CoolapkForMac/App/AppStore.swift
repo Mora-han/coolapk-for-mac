@@ -120,7 +120,7 @@ final class AppStore {
     /// 每次自增用于触发当前列表重新加载（⌘R）。
     var reloadToken = false
     /// 首页当前选中的 Tab（page name），提到 AppStore 便于快捷键与状态恢复。
-    var homeTab = "V9_HOME_TAB_HEADLINE"
+    var homeTab = "V9_HOME_TAB_RECOMMEND"
     var sidebarSections: [SidebarSection] = []
     var toast: String?
     var viewer: ViewerState?
@@ -129,6 +129,7 @@ final class AppStore {
 
     private init() {
         ImageLoading.userAgent = CoolapkToken.userAgent
+        DebugHooks.installLogSink()
         load()
         ImageLoading.showsImages = showImages
     }

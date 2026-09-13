@@ -119,6 +119,12 @@ public struct JSON: Hashable {
 
     public var exists: Bool { !isNull }
 
+    /// 是否是 JSON 对象（酷安把不少非列表数据放在 `data` 对象里）。
+    public var isObject: Bool {
+        if case .object = value { return true }
+        return false
+    }
+
     public var date: Date? {
         let stamp = int
         guard stamp > 0 else { return nil }
