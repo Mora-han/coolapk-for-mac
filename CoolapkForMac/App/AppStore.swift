@@ -25,6 +25,8 @@ enum NavItem: Hashable, Identifiable {
     case product(String, String)
     case collection(String, String)
     case dyh(String, String)
+    /// 看看号列表（订阅 / 推荐），入口是列表里的「更多」。
+    case dyhList(String)
     case question(String, String)
     case vote(String, String)
     case page(String, String)
@@ -50,6 +52,7 @@ enum NavItem: Hashable, Identifiable {
         case let .product(id, _): return "product-\(id)"
         case let .collection(id, _): return "collection-\(id)"
         case let .dyh(id, _): return "dyh-\(id)"
+        case .dyhList: return "dyh-list"
         case let .question(id, _): return "question-\(id)"
         case let .vote(id, _): return "vote-\(id)"
         case let .page(name, _): return "page-\(name)"
@@ -122,6 +125,8 @@ final class AppStore {
     /// 首页当前选中的 Tab（page name），提到 AppStore 便于快捷键与状态恢复。
     var homeTab = "V9_HOME_TAB_RECOMMEND"
     var sidebarSections: [SidebarSection] = []
+    /// 侧栏 / 首页标签在 `/v6/main/init` 里的页面地址（`url`），路由的权威依据。
+    var pageLinks: [String: String] = [:]
     var toast: String?
     var viewer: ViewerState?
     var focusReply = false
@@ -277,6 +282,13 @@ final class AppStore {
             text = parsed.path + (query.isEmpty ? "" : "?\(query)")
         }
         if text.hasPrefix("tab://") { return }
+        // 看看号的「更多」是列表页，不是某个看看号，别当成详情 id 打开。
+        if text.contains("/dyh/recommendList") || text.contains("/dyhFollowList") {
+            let query = URLComponents(string: "https://www.coolapk.com" + (text.hasPrefix("/") ? text : "/" + text))
+            let title = query?.queryItems?.first(where: { $0.name == "title" })?.value ?? ""
+            openDyhList(title: title)
+            return
+        }
         if text.contains("/product/") {
             openProduct(text.split(separator: "/").last.map(String.init) ?? "")
         } else if text.contains("/apk/") {
@@ -328,6 +340,11 @@ final class AppStore {
         selection = .dyh(id, "看看号")
     }
 
+    /// 看看号列表页（`/dyh/recommendList`、`/user/dyhFollowList`）。
+    func openDyhList(title: String) {
+        selection = .dyhList(title.isEmpty ? "看看号" : title)
+    }
+
     func openQuestion(_ value: String) {
         let id = value.split(separator: "?").first.map(String.init) ?? value
         guard !id.isEmpty else { return }
@@ -363,6 +380,32 @@ final class AppStore {
             for tab in section.tabs where tab.pageName == pageName { return tab.title }
         }
         return "酷安"
+    }
+
+    /// 一个标签要怎么取数据，只看它自己的页面地址。
+    func route(forPage pageName: String) -> PageRoute {
+        PageRoute.resolve(link: pageLinks[pageName] ?? "", pageName: pageName)
+    }
+
+    /// 不放进侧栏的入口：这几个页面的接口已经不返回内容，留着只会是空白页。
+    private static let hiddenPages: Set<String> = [
+        "V11_FIND_GOODS",           // 酷品
+        "V11_DISCOVERY_SECOND_HAND", // 二手
+        "V12_FIND_KUBANG",          // 好物榜
+    ]
+
+    /// 应用侧栏配置：丢掉不展示的入口，并记住每个标签的页面地址（路由与「更多」入口都靠它）。
+    func apply(sections: [SidebarSection]) {
+        var visible: [SidebarSection] = []
+        for section in sections {
+            let tabs = section.tabs.filter { !Self.hiddenPages.contains($0.pageName) }
+            guard !tabs.isEmpty else { continue }
+            visible.append(SidebarSection(id: section.id, title: section.title, tabs: tabs))
+        }
+        sidebarSections = visible
+        for section in visible {
+            for tab in section.tabs { pageLinks[tab.pageName] = tab.link }
+        }
     }
 
     func openFeed(id: String) async {
@@ -415,6 +458,7 @@ final class AppStore {
         case let .product(_, title): return title
         case let .collection(_, title): return title
         case let .dyh(_, title): return title
+        case let .dyhList(title): return title
         case let .question(_, title): return title
         case let .vote(_, title): return title
         case let .page(_, title): return title
@@ -440,6 +484,10 @@ final class AppStore {
         case "page": selection = .page(value, pageTitle(for: value))
         case "path": openTarget(url: value)
         case "nav": selection = builtinSection(named: value)
+        case "search":
+            searchText = value
+            showSearch = true
+            searching = true
         default: break
         }
     }
@@ -524,5 +572,46 @@ final class AppStore {
 
     func reply(feedID: String, message: String, replyID: String?) async throws {
         _ = try await API.postReply(targetID: replyID ?? feedID, message: message, isReply: replyID != nil)
+    }
+}
+
+/// 一个侧栏 / 首页标签的取数方式，由 `/v6/main/init` 给的页面地址（`url`）决定。
+///
+/// 配置里只有信息流页会写成 `/page?url=<页面名>`，其余几项是服务端自带的路由页
+/// （`/main/headline`、`/product/categoryList`、`/user/dyhSubscribe`）。
+/// 以前一律把 `page_name` 当页面名塞进 `dataList`，这些路由页就会永远返回空数组。
+enum PageRoute: Equatable {
+    case feed(name: String, type: String?)
+    case headline
+    case dyh
+    case digitalLibrary
+
+    static func resolve(link: String, pageName: String) -> PageRoute {
+        switch API.pageTarget(from: link) {
+        case "/main/headline":
+            return .headline
+        case "/user/dyhSubscribe":
+            return .dyh
+        case "/product/categoryList":
+            return .digitalLibrary
+        case let target where !target.isEmpty && !target.hasPrefix("/"):
+            return .feed(name: target, type: target == "V9_HOME_TAB_FOLLOW" ? "circle" : nil)
+        case "":
+            // 接口还没回来（兜底标签）时按页面名判断。
+            return .feed(name: pageName, type: pageName == "V9_HOME_TAB_FOLLOW" ? "circle" : nil)
+        default:
+            // 还没适配的路由页：退回按页面名取，至少与以前的页面名列表一致。
+            return .feed(name: pageName, type: nil)
+        }
+    }
+
+    /// 转成列表模型的数据源；数码库有自己的分类栏，不走这一层。
+    var source: FeedListModel.Source? {
+        switch self {
+        case let .feed(name, type): return .page(name, type)
+        case .headline: return .headline
+        case .dyh: return .dyhSubscribe
+        case .digitalLibrary: return nil
+        }
     }
 }

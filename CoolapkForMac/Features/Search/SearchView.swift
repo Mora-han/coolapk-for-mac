@@ -19,6 +19,8 @@ struct SearchView: View {
     @State private var finished = false
     @State private var submitted: String?
     @State private var error: String?
+    /// 结果卡片按所在栏的实际宽度排版，不写死宽度。
+    @State private var rowWidth: CGFloat = 320
 
     enum ResultType: String, CaseIterable, Identifiable {
         case feeds = "动态"
@@ -44,6 +46,12 @@ struct SearchView: View {
         .task {
             if hotWords.isEmpty {
                 hotWords = (try? await API.hotSearchWords()) ?? []
+            }
+            // 带着关键词进来时（工具栏搜索框提交、调试入口）直接出结果。
+            if store.searching, !store.searchText.isEmpty {
+                keyword = store.searchText
+                search()
+                store.searching = false
             }
         }
         .onChange(of: store.searching) { _, newValue in
@@ -108,6 +116,7 @@ struct SearchView: View {
             .frame(maxWidth: min(760, store.contentWidth + 140))
             .frame(maxWidth: .infinity)
             .padding(18)
+            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { rowWidth = $0 }
         }
     }
 
@@ -175,7 +184,7 @@ struct SearchView: View {
             switch type {
             case .feeds:
                 ForEach(results) { row in
-                    FeedRowView(row: row, width: min(760, store.contentWidth + 140) - 36, model: FeedListModel(source: .search(submitted ?? "", "feed")))
+                    FeedRowView(row: row, width: max(200, rowWidth - 36), model: FeedListModel(source: .search(submitted ?? "", "feed")))
                 }
             case .users:
                 if users.isEmpty { EmptyStateView(title: "没有找到相关用户", systemImage: "person.slash").frame(height: 200) }

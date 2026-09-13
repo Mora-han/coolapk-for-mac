@@ -11,7 +11,11 @@ final class FeedListModel {
     enum Source: Hashable {
         case home
         case headline
+        /// 看看号（`/v6/user/dyhSubscribe`），配置里给的地址不是信息流页名。
+        case dyhSubscribe
         case page(String, String?)
+        /// 直接以某个地址请求 `/v6/page/dataList`（数码库分类等）。
+        case dataList(String)
         case user(String)
         case topic(String)
         case search(String, String)
@@ -93,8 +97,12 @@ final class FeedListModel {
                 return try await API.homeFeed(page: page)
             case .headline:
                 return try await API.headlineFeed(page: page)
+            case .dyhSubscribe:
+                return try await API.dyhSubscribe(page: page)
             case let .page(name, type):
                 return try await API.pageFeed(pageName: name, page: page, type: type)
+            case let .dataList(target):
+                return try await API.productCategory(pageLink: target, page: page)
             case let .user(uid):
                 return try await API.userFeeds(uid: uid, page: page)
             case let .topic(tag):
@@ -235,6 +243,52 @@ struct FeedListView: View {
 
 // MARK: - Row dispatcher
 
+/// 没有自带滚动容器的列表：页面本身已经是 `ScrollView` 时用它。
+/// `FeedListView` 靠 `GeometryReader` 撑高度，套在别人的 `ScrollView` 里会塌成 0 高、什么都看不见。
+struct InlineFeedList: View {
+    let model: FeedListModel
+    let width: CGFloat
+    var emptyMessage = "这里还没有内容"
+
+    @Environment(AppStore.self) private var store
+
+    var body: some View {
+        LazyVStack(alignment: .leading, spacing: 10) {
+            ForEach(model.rows) { row in
+                FeedRowView(row: row, width: max(200, width), model: model)
+                    .task { await model.loadNextPageIfNeeded(current: row) }
+            }
+            footer
+        }
+        .task(id: ObjectIdentifier(model)) { if model.isEmpty { await model.load() } }
+        .task(id: store.reloadToken) {
+            guard !model.isEmpty else { return }
+            await model.load(reset: true)
+        }
+        .overlay(alignment: .top) {
+            if let error = model.error, model.isEmpty {
+                ErrorBanner(message: error) { Task { await model.load(reset: true) } }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var footer: some View {
+        if model.isEmpty, !model.isLoading, model.hasLoaded {
+            EmptyStateView(title: emptyMessage, systemImage: "text.bubble")
+                .frame(height: 200)
+        } else if model.isLoading || (model.isEmpty && !model.hasLoaded) {
+            LoadingRow()
+        } else if model.finished, !model.isEmpty {
+            Text("没有更多了")
+                .font(.footnote)
+                .foregroundStyle(.tertiary)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 14)
+        }
+    }
+}
+
 struct FeedRowView: View {
     let row: HomeFeedRow
     let width: CGFloat
@@ -278,7 +332,131 @@ struct FeedRowView: View {
             GoodsScroller(key: key, items: items, width: width)
         case let .lives(key, items):
             LiveScroller(key: key, items: items, width: width)
+        case let .browse(item):
+            BrowseRowView(item: item, width: width)
+        case let .collection(item):
+            CollectionCardView(item: item, width: width)
         }
+    }
+}
+
+// MARK: - 收藏夹
+
+/// 收藏夹一行：封面 + 标题 + 简介 + 条目数，点开看里面的内容。
+struct CollectionCardView: View {
+    let item: CollectionItem
+    let width: CGFloat
+
+    @Environment(AppStore.self) private var store
+    @State private var hovering = false
+
+    var body: some View {
+        HStack(spacing: 12) {
+            RemoteImage(url: item.logo, maxPixel: 260, contentMode: .fill, cornerRadius: 12)
+                .frame(width: 56, height: 56)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(item.title.isEmpty ? "收藏夹" : item.title)
+                    .font(.system(size: 14, weight: .semibold))
+                    .lineLimit(1)
+                if !item.description.isEmpty {
+                    Text(FeedHTML.plainText(item.description))
+                        .font(.system(size: 11.5))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
+                HStack(spacing: 8) {
+                    if !item.username.isEmpty { Text(item.username) }
+                    Text("\(item.itemNum) 条内容")
+                    if item.followNum > 0 { Text("\(item.followNum) 关注") }
+                }
+                .font(.system(size: 11))
+                .foregroundStyle(.tertiary)
+            }
+
+            Spacer(minLength: 0)
+            Image(systemName: "chevron.right").font(.system(size: 11)).foregroundStyle(.tertiary)
+        }
+        .padding(14)
+        .frame(width: width, alignment: .leading)
+        .cardBackground(cornerRadius: 16)
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .strokeBorder(Color.primary.opacity(hovering ? 0.12 : 0), lineWidth: 1)
+        )
+        .offset(y: hovering ? -1 : 0)
+        .animation(.snappy(duration: 0.18), value: hovering)
+        .onHover { hovering = $0 }
+        .contentShape(Rectangle())
+        .onTapGesture { store.openCollection(item.id) }
+    }
+}
+
+// MARK: - 浏览记录
+
+/// 浏览历史 / 最近浏览的一行：小图标 + 标题 + 类型与时间，点一下跳到原内容。
+struct BrowseRowView: View {
+    let item: BrowseItem
+    let width: CGFloat
+
+    @Environment(AppStore.self) private var store
+    @State private var hovering = false
+
+    var body: some View {
+        HStack(spacing: 12) {
+            RemoteImage(url: item.logo, maxPixel: 200, contentMode: .fill, cornerRadius: 10)
+                .frame(width: 44, height: 44)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(item.title)
+                    .font(.system(size: 13.5, weight: .medium))
+                    .lineLimit(1)
+                HStack(spacing: 6) {
+                    if !item.kindTitle.isEmpty {
+                        Text(item.kindTitle)
+                            .font(.system(size: 10.5, weight: .medium))
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 1.5)
+                            .background(Color.primary.opacity(0.06), in: Capsule())
+                    }
+                    if !item.subtitle.isEmpty {
+                        Text(FeedHTML.plainText(item.subtitle))
+                            .font(.system(size: 11.5))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                }
+            }
+
+            Spacer(minLength: 0)
+
+            if let date = item.dateline {
+                Text(Self.relative(date))
+                    .font(.system(size: 11.5))
+                    .foregroundStyle(.tertiary)
+            }
+            Image(systemName: "chevron.right")
+                .font(.system(size: 11))
+                .foregroundStyle(.tertiary)
+        }
+        .padding(12)
+        .frame(width: width, alignment: .leading)
+        .cardBackground(cornerRadius: 14)
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .strokeBorder(Color.primary.opacity(hovering ? 0.12 : 0), lineWidth: 1)
+        )
+        .offset(y: hovering ? -1 : 0)
+        .animation(.snappy(duration: 0.18), value: hovering)
+        .onHover { hovering = $0 }
+        .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .onTapGesture { store.openTarget(url: item.url) }
+    }
+
+    private static func relative(_ date: Date) -> String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .short
+        return formatter.localizedString(for: date, relativeTo: Date())
     }
 }
 

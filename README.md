@@ -78,6 +78,7 @@ import LiquidGlassUI   // 只要界面组件
 ```bash
 COOLAPK_OPEN="dyh:1480"                     # 看看号
 COOLAPK_OPEN="page:V9_HOME_TAB_RANKING"     # 指定某个数据源页面
+COOLAPK_OPEN="search:小米"                   # 打开搜索并直接出结果
 COOLAPK_OPEN_FEED=73714177                  # 直接打开一条动态详情
 COOLAPK_TAB=V9_HOME_TAB_HEADLINE            # 首页切到指定标签
 COOLAPK_NOTIFY=likes                        # 消息页切到指定分类
@@ -85,7 +86,7 @@ COOLAPK_SCROLL=3                            # 列表加载后滚动到第 N 行
 COOLAPK_DEBUG=1                             # 打印请求日志
 ```
 
-支持的前缀：feed、user、topic、product、app、collection、dyh、question、vote、page、path、nav。
+支持的前缀：feed、user、topic、product、app、collection、dyh、question、vote、page、path、nav、search。
 
 `COOLAPK_DEBUG=1` 时请求日志走 `CoolapkKit` 的 `CoolapkLog.sink`。应用开了沙盒，
 容器外路径（例如 `/tmp`）写不进去，日志会回落到：

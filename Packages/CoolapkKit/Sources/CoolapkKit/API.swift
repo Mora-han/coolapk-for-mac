@@ -16,7 +16,11 @@ public enum API {
             for entity in card.entities.array {
                 let pageName = entity.page_name.string
                 guard !pageName.isEmpty else { continue }
-                tabs.append(HomeTab(id: pageName, title: entity.title.string, pageName: pageName, logo: entity.logo.string))
+                tabs.append(HomeTab(id: pageName,
+                                    title: entity.title.string,
+                                    pageName: pageName,
+                                    logo: entity.logo.string,
+                                    link: entity.url.string))
             }
             guard !tabs.isEmpty else { continue }
             sections.append(SidebarSection(id: title, title: title, tabs: tabs))
@@ -37,8 +41,35 @@ public enum API {
 
     /// 头条信息流（`/v6/main/headline`），与首页推荐流是两套内容。
     public static func headlineFeed(page: Int) async throws -> [HomeFeedRow] {
-        let json = try await client.get("/v6/main/headline", ["page": String(page), "t": String(Int(Date().timeIntervalSince1970))])
+        // 该接口偶发返回「成功但空」的响应（连打几次就会碰上），空手而归时重试。
+        var loaded: [HomeFeedRow] = []
+        for attempt in 0..<3 {
+            let json = try await client.get("/v6/main/headline", ["page": String(page), "t": String(Int(Date().timeIntervalSince1970))])
+            loaded = try rows(from: json.data.array)
+            if !loaded.isEmpty || page > 1 { break }
+            if attempt < 2 { try? await Task.sleep(nanoseconds: 400_000_000) }
+        }
+        return loaded
+    }
+
+    /// 看看号（`/user/dyhSubscribe`）：我订阅的看看号 + 站内订阅的推荐内容。
+    public static func dyhSubscribe(page: Int) async throws -> [HomeFeedRow] {
+        let json = try await client.get("/v6/user/dyhSubscribe", ["page": String(page), "t": String(Int(Date().timeIntervalSince1970))])
         return try rows(from: json.data.array)
+    }
+
+    // MARK: - 数码库
+
+    /// 数码库分类列表（`/v6/product/categoryList`）。
+    public static func productCategories() async throws -> [ProductCategory] {
+        let json = try await client.get("/v6/product/categoryList", ["page": "1"])
+        return json.data.array.map { ProductCategory(json: $0) }
+    }
+
+    /// 某个数码分类下的商品流，地址取自分类行自己的 `url`。
+    public static func productCategory(pageLink: String, page: Int) async throws -> [HomeFeedRow] {
+        let items = try await client.dataList(url: pageTarget(from: pageLink), page: page)
+        return try rows(from: items)
     }
 
     /// Generic page timeline, used by "关注", "热榜", "话题" and friends.
@@ -70,18 +101,26 @@ public enum API {
     /// 把一个原始条目数组转换成可以直接渲染的行。
     /// 按页面地址拉取列表，地址可能形如 `/page?url=V11_XXX` 或 `#/topic/tagList?…`。
     public static func linkFeed(link: String, page: Int) async throws -> [HomeFeedRow] {
-        var target = link
-        if let range = target.range(of: "url=") {
-            target = String(target[range.upperBound...])
-            if let amp = target.firstIndex(of: "&") { target = String(target[..<amp]) }
-        }
-        target = target.replacingOccurrences(of: "#", with: "")
+        let target = pageTarget(from: link)
         if target.hasPrefix("/page?") {
             let items = try await client.get(target, ["page": String(page)]).data.array
             return try rows(from: items)
         }
         let items = try await client.dataList(url: target, page: page)
         return try rows(from: items)
+    }
+
+    /// 从接口给的页面地址里取出真正要请求的那个地址。
+    /// `/page?url=V11_XXX` 包了一层的解开成 `V11_XXX`，`#/topic/tagList?…` 去掉开头的 `#`，
+    /// 已经是路由地址的（`/main/headline` 等）原样返回。
+    public static func pageTarget(from link: String) -> String {
+        var target = link
+        if let range = target.range(of: "url=") {
+            target = String(target[range.upperBound...])
+            if let amp = target.firstIndex(of: "&") { target = String(target[..<amp]) }
+            target = target.removingPercentEncoding ?? target
+        }
+        return target.replacingOccurrences(of: "#", with: "")
     }
 
     public static func rows(from items: [JSON]) throws -> [HomeFeedRow] {
@@ -124,8 +163,12 @@ public enum API {
 
             flushAll()
             switch item.entityType.string {
-            case "feed", "feed_reply", "reply":
+            case "feed", "feed_reply", "reply", "forwardFeed":
                 rows.append(.feed(FeedItem(json: item)))
+            case "history", "recentHistory":
+                rows.append(.browse(BrowseItem(json: item)))
+            case "collection":
+                rows.append(.collection(CollectionItem(json: item)))
             case "product":
                 rows.append(.product(ProductItem(json: item)))
             case "topic":

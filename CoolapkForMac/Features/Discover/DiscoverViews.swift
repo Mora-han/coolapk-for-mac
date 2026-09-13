@@ -72,24 +72,27 @@ struct AppsView: View {
     @State private var error: String?
 
     var body: some View {
-        ScrollView {
-            LazyVStack(spacing: 8) {
-                if let error, items.isEmpty {
-                    ErrorBanner(message: error) { Task { await load(reset: true) } }
+        // 宽度跟随所在栏，卡片不会被栏宽裁掉。
+        GeometryReader { proxy in
+            ScrollView {
+                LazyVStack(spacing: 8) {
+                    if let error, items.isEmpty {
+                        ErrorBanner(message: error) { Task { await load(reset: true) } }
+                    }
+                    ForEach(items) { item in
+                        AppCardView(item: item, width: max(240, min(proxy.size.width, store.contentWidth) - 36))
+                            .task {
+                                if item.id == items.last?.id, !finished { await load(reset: false) }
+                            }
+                    }
+                    if loading { LoadingRow() }
+                    if items.isEmpty, !loading, error == nil {
+                        EmptyStateView(title: "暂无内容", systemImage: "square.grid.2x2").frame(height: 240)
+                    }
                 }
-                ForEach(items) { item in
-                    AppCardView(item: item, width: min(760, store.contentWidth + 140) - 36)
-                        .task {
-                            if item.id == items.last?.id, !finished { await load(reset: false) }
-                        }
-                }
-                if loading { LoadingRow() }
-                if items.isEmpty, !loading, error == nil {
-                    EmptyStateView(title: "暂无内容", systemImage: "square.grid.2x2").frame(height: 240)
-                }
+                .frame(maxWidth: .infinity)
+                .padding(18)
             }
-            .frame(maxWidth: .infinity)
-            .padding(18)
         }
         .task { await load(reset: true) }
         .refreshable { await load(reset: true) }
@@ -132,6 +135,7 @@ struct AppDetailView: View {
     @State private var item: AppItem?
     @State private var error: String?
     @State private var comments: FeedListModel?
+    @State private var rowWidth: CGFloat = 320
 
     var body: some View {
         ScrollView {
@@ -243,7 +247,7 @@ struct AppDetailView: View {
             }
             if let comments {
                 ForEach(comments.rows) { row in
-                    FeedRowView(row: row, width: min(760, store.contentWidth + 140) - 60, model: comments)
+                    FeedRowView(row: row, width: max(200, rowWidth - 32), model: comments)
                 }
                 if comments.rows.isEmpty, !comments.isLoading {
                     Text("暂无评论").font(.footnote).foregroundStyle(.secondary)
@@ -252,6 +256,7 @@ struct AppDetailView: View {
         }
         .padding(16)
         .cardBackground(cornerRadius: 16)
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { rowWidth = $0 }
         .task {
             if comments == nil { comments = FeedListModel(source: .appComments(id)) }
             if let comments, comments.isEmpty { await comments.load() }
@@ -289,7 +294,8 @@ struct TopicView: View {
                 Text(topic?.title ?? tag).font(.system(size: 15, weight: .semibold))
                 HStack(spacing: 10) {
                     if let topic {
-                        Text("\(formatCount(topic.feedNum)) 条动态")
+                        // 话题详情的接口不给动态条数，拿不到就不显示，别写「0 条动态」。
+                        if topic.feedNum > 0 { Text("\(formatCount(topic.feedNum)) 条动态") }
                         Text("\(formatCount(topic.followNum)) 人关注")
                     }
                 }
@@ -323,7 +329,8 @@ struct ProductView: View {
         VStack(spacing: 0) {
             header
             Divider()
-            FeedListView(model: FeedListModel(source: .page("/page?url=/product/feedList?type=0&id=\(id)", nil)),
+            // 商品动态的地址里带上 `type=0` 服务端会返回空数组，只传 id 即可。
+            FeedListView(model: FeedListModel(source: .dataList("/product/feedList?id=\(id)")),
                           emptyMessage: "暂无相关动态")
                 .id(id)
         }

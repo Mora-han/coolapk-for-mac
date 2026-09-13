@@ -404,6 +404,10 @@ public enum HomeFeedRow: Identifiable, Hashable {
     case goods(String, [PearGoods])
     /// 横向直播。
     case lives(String, [LiveTopic])
+    /// 浏览记录（浏览历史 / 最近浏览）。
+    case browse(BrowseItem)
+    /// 收藏夹（`/v6/collection/list`）。
+    case collection(CollectionItem)
 
     public var id: String {
         switch self {
@@ -424,7 +428,55 @@ public enum HomeFeedRow: Identifiable, Hashable {
         case let .notice(key, _): return "notice-\(key)"
         case let .goods(key, _): return "goods-\(key)"
         case let .lives(key, _): return "lives-\(key)"
+        case let .browse(item): return "browse-\(item.id)"
+        case let .collection(item): return "collection-\(item.id)"
         }
+    }
+}
+
+// MARK: - 浏览记录
+
+/// 浏览历史（`hitHistoryList`）与最近浏览（`recentHistoryList`）里的一条记录，
+/// 可能指向动态、商品、看看号或用户，统一按「图标 + 标题 + 类型 + 时间」渲染。
+public struct BrowseItem: Identifiable, Hashable {
+    public let id: String
+    public var title = ""
+    public var subtitle = ""
+    public var logo = ""
+    /// 记录自己的地址，点一下按普通链接打开。
+    public var url = ""
+    public var kindTitle = ""
+    public var dateline: Date?
+
+    public init(json: JSON) {
+        self.id = json.id.exists ? json.id.identifier : json.entityId.identifier
+        self.title = json.title.string
+        self.subtitle = json.description.string
+        self.logo = json.logo.string.isEmpty ? json.pic.string : json.logo.string
+        self.url = json.url.string
+        self.kindTitle = json.typeName.string.isEmpty ? json.target_type_title.string : json.typeName.string
+        let stamp = json.dateline.exists ? json.dateline.double : json.lastupdate.double
+        self.dateline = stamp > 0 ? Date(timeIntervalSince1970: stamp) : nil
+    }
+}
+
+// MARK: - 数码库
+
+/// 数码库分类（`/v6/product/categoryList`，实体类型是 `productBrand`）。
+public struct ProductCategory: Identifiable, Hashable {
+    public let id: String
+    public var title = ""
+    public var logo = ""
+    public var productNum = 0
+    /// 分类对应的页面地址，下钻时按原样交给 `/v6/page/dataList`。
+    public var link = ""
+
+    public init(json: JSON) {
+        self.id = json.id.exists ? json.id.identifier : json.title.string
+        self.title = json.title.string
+        self.logo = json.logo.string.isEmpty ? json.pic.string : json.logo.string
+        self.productNum = json.product_num.int
+        self.link = json.url.string
     }
 }
 
@@ -786,17 +838,22 @@ public struct NotificationBadge: Equatable {
 // MARK: - Sidebar model
 
 public struct HomeTab: Identifiable, Hashable {
-    public init(id: String, title: String, pageName: String, logo: String = "") {
+    public init(id: String, title: String, pageName: String, logo: String = "", link: String = "") {
         self.id = id
         self.title = title
         self.pageName = pageName
         self.logo = logo
+        self.link = link
     }
 
     public let id: String
     public var title: String
     public var pageName: String
     public var logo: String = ""
+    /// `/v6/main/init` 里该标签的页面地址，是路由的权威依据：
+    /// 信息流页形如 `/page?url=V9_HOME_TAB_XXX`，其余是服务端自带的路由页
+    /// （`/main/headline`、`/product/categoryList`、`/user/dyhSubscribe`…）。
+    public var link: String = ""
 }
 
 public struct SidebarSection: Identifiable, Hashable {

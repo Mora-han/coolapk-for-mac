@@ -174,6 +174,7 @@ struct RootView: View {
         case let .product(id, _): return "product:\(id)"
         case let .collection(id, _): return "collection:\(id)"
         case let .dyh(id, _): return "dyh:\(id)"
+        case .dyhList: return "dyh-list"
         case let .question(id, _): return "question:\(id)"
         case let .vote(id, _): return "vote:\(id)"
         case let .page(name, _): return "page:\(name)"
@@ -201,6 +202,7 @@ struct RootView: View {
         case let .product(_, title): return title
         case let .collection(_, title): return title
         case let .dyh(_, title): return title
+        case let .dyhList(title): return title
         case let .question(_, title): return title
         case let .vote(_, title): return title
         case let .page(_, title): return title
@@ -247,12 +249,13 @@ struct RootView: View {
                 HomeTimelineView()
                     .navigationTitle("酷安")
             case .follow:
-                feedColumn(title: "关注", requiresLogin: true)
+                feedColumn(title: "关注", route: .feed(name: "V9_HOME_TAB_FOLLOW", type: "circle"), requiresLogin: true)
             case .ranking:
-                feedColumn(title: "热榜")
+                feedColumn(title: "热榜", route: .feed(name: "V9_HOME_TAB_RANKING", type: nil))
             case let .tab(pageName, title):
-                feedColumn(title: title, requiresLogin: pageName == "V9_HOME_TAB_FOLLOW")
-                    .id(pageName)
+                tabContent(pageName: pageName, title: title)
+            case let .dyhList(title):
+                feedColumn(title: title, route: .dyh)
             case .apps:
                 AppsView(type: 1, title: "应用").navigationTitle("应用")
             case .games:
@@ -292,15 +295,26 @@ struct RootView: View {
             case let .vote(id, title):
                 VoteView(id: id).navigationTitle(title)
             case let .page(name, title):
-                feedColumn(title: title, requiresLogin: name == "V9_HOME_TAB_FOLLOW")
-                    .id(name)
+                tabContent(pageName: name, title: title)
             }
+        }
+    }
+
+    /// 侧栏 / 首页标签的内容列，按 `/v6/main/init` 给的页面地址决定用哪种列表。
+    @ViewBuilder
+    private func tabContent(pageName: String, title: String) -> some View {
+        let route = store.route(forPage: pageName)
+        if route == .digitalLibrary {
+            DigitalLibraryView().navigationTitle(title)
+        } else {
+            feedColumn(title: title, route: route, requiresLogin: pageName == "V9_HOME_TAB_FOLLOW")
+                .id(pageName)
         }
     }
 
     /// Feed based destinations share one model instance so that switching columns
     /// never restarts a download that is already in flight.
-    private func feedColumn(title: String, requiresLogin: Bool = false) -> some View {
+    private func feedColumn(title: String, route: PageRoute, requiresLogin: Bool = false) -> some View {
         Group {
             if let contentModel {
                 FeedListView(model: contentModel, requiresLogin: requiresLogin)
@@ -309,26 +323,11 @@ struct RootView: View {
             }
         }
         .navigationTitle(title)
-        .task(id: store.selection) {
-            guard let source = source(for: store.selection) else { return }
+        .task(id: route) {
+            guard let source = route.source else { return }
             if contentModel?.source != source {
                 contentModel = FeedListModel(source: source)
             }
-        }
-    }
-
-    private func source(for item: NavItem?) -> FeedListModel.Source? {
-        switch item {
-        case .follow:
-            return .page("V9_HOME_TAB_FOLLOW", "circle")
-        case .ranking:
-            return .page("V9_HOME_TAB_RANKING", nil)
-        case let .tab(pageName, _):
-            return .page(pageName, pageName == "V9_HOME_TAB_FOLLOW" ? "circle" : nil)
-        case let .page(pageName, _):
-            return .page(pageName, pageName == "V9_HOME_TAB_FOLLOW" ? "circle" : nil)
-        default:
-            return nil
         }
     }
 
@@ -358,7 +357,7 @@ struct RootView: View {
     private func loadTabs() async {
         guard store.sidebarSections.isEmpty else { return }
         if let sections = try? await API.tabConfiguration() {
-            store.sidebarSections = sections
+            store.apply(sections: sections)
         }
     }
 }

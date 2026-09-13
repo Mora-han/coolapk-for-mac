@@ -19,11 +19,14 @@ struct UserView: View {
     @State private var profile: UserProfile?
     @State private var tab: Tab = .feeds
     @State private var feedModel: FeedListModel?
+    @State private var collectionModel: FeedListModel?
     @State private var users: [UserBrief] = []
     @State private var loadingUsers = false
     @State private var userPage = 1
     @State private var finishedUsers = false
     @State private var error: String?
+    /// 列表按所在栏的实际宽度排版（页面本身是 ScrollView，量到多少用多少）。
+    @State private var rowWidth: CGFloat = 320
 
     var body: some View {
         ScrollView {
@@ -36,6 +39,7 @@ struct UserView: View {
             .frame(maxWidth: .infinity)
             .padding(.horizontal, 18)
             .padding(.vertical, 14)
+            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { rowWidth = $0 }
         }
         .task(id: uid) { await load() }
     }
@@ -171,7 +175,7 @@ struct UserView: View {
         switch tab {
         case .feeds:
             if let feedModel {
-                FeedListView(model: feedModel, emptyMessage: "还没有发布动态")
+                InlineFeedList(model: feedModel, width: rowWidth - 36, emptyMessage: "还没有发布动态")
             } else {
                 LoadingRow()
             }
@@ -179,7 +183,11 @@ struct UserView: View {
             userList
         case .collections:
             if store.uid == uid {
-                FeedListView(model: FeedListModel(source: .collection(uid)), emptyMessage: "还没有收藏内容")
+                if let collectionModel {
+                    InlineFeedList(model: collectionModel, width: rowWidth - 36, emptyMessage: "还没有收藏内容")
+                } else {
+                    LoadingRow()
+                }
             } else {
                 EmptyStateView(title: "仅本人可见", systemImage: "lock")
                     .frame(height: 200)
@@ -231,6 +239,9 @@ struct UserView: View {
     private func load() async {
         if feedModel == nil || feedModel?.source != .user(uid) {
             feedModel = FeedListModel(source: .user(uid))
+        }
+        if store.uid == uid, collectionModel == nil {
+            collectionModel = FeedListModel(source: .collection(uid))
         }
         do {
             profile = try await API.userProfile(uid: uid)
