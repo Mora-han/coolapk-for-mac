@@ -394,10 +394,16 @@ final class AppStore {
         "V12_FIND_KUBANG",          // 好物榜
     ]
 
+    /// 整组不放进侧栏的分组：数码那一组是商品 / 导购页面，实际用不上。
+    private static let hiddenSectionTitles: Set<String> = [
+        "数码",
+    ]
+
     /// 应用侧栏配置：丢掉不展示的入口，并记住每个标签的页面地址（路由与「更多」入口都靠它）。
     func apply(sections: [SidebarSection]) {
         var visible: [SidebarSection] = []
         for section in sections {
+            guard !Self.hiddenSectionTitles.contains(where: { section.title.contains($0) }) else { continue }
             let tabs = section.tabs.filter { !Self.hiddenPages.contains($0.pageName) }
             guard !tabs.isEmpty else { continue }
             visible.append(SidebarSection(id: section.id, title: section.title, tabs: tabs))
@@ -578,13 +584,12 @@ final class AppStore {
 /// 一个侧栏 / 首页标签的取数方式，由 `/v6/main/init` 给的页面地址（`url`）决定。
 ///
 /// 配置里只有信息流页会写成 `/page?url=<页面名>`，其余几项是服务端自带的路由页
-/// （`/main/headline`、`/product/categoryList`、`/user/dyhSubscribe`）。
+/// （`/main/headline`、`/user/dyhSubscribe`）。
 /// 以前一律把 `page_name` 当页面名塞进 `dataList`，这些路由页就会永远返回空数组。
 enum PageRoute: Equatable {
     case feed(name: String, type: String?)
     case headline
     case dyh
-    case digitalLibrary
 
     static func resolve(link: String, pageName: String) -> PageRoute {
         switch API.pageTarget(from: link) {
@@ -592,8 +597,6 @@ enum PageRoute: Equatable {
             return .headline
         case "/user/dyhSubscribe":
             return .dyh
-        case "/product/categoryList":
-            return .digitalLibrary
         case let target where !target.isEmpty && !target.hasPrefix("/"):
             return .feed(name: target, type: target == "V9_HOME_TAB_FOLLOW" ? "circle" : nil)
         case "":
@@ -605,13 +608,12 @@ enum PageRoute: Equatable {
         }
     }
 
-    /// 转成列表模型的数据源；数码库有自己的分类栏，不走这一层。
-    var source: FeedListModel.Source? {
+    /// 转成列表模型的数据源。
+    var source: FeedListModel.Source {
         switch self {
         case let .feed(name, type): return .page(name, type)
         case .headline: return .headline
         case .dyh: return .dyhSubscribe
-        case .digitalLibrary: return nil
         }
     }
 }

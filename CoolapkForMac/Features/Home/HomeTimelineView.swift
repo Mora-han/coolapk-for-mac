@@ -80,6 +80,6 @@ struct HomeTimelineView: View {
     private func makeModel(for pageName: String) -> FeedListModel {
         if pageName == "V9_HOME_TAB_RECOMMEND" { return FeedListModel(source: .home) }
         // 头条这类入口的地址不是信息流页名，交给统一的页面地址路由判断。
-        return FeedListModel(source: store.route(forPage: pageName).source ?? .page(pageName, nil))
+        return FeedListModel(source: store.route(forPage: pageName).source)
     }
 }

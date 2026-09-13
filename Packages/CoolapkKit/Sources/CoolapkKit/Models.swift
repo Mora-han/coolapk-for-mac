@@ -460,26 +460,6 @@ public struct BrowseItem: Identifiable, Hashable {
     }
 }
 
-// MARK: - 数码库
-
-/// 数码库分类（`/v6/product/categoryList`，实体类型是 `productBrand`）。
-public struct ProductCategory: Identifiable, Hashable {
-    public let id: String
-    public var title = ""
-    public var logo = ""
-    public var productNum = 0
-    /// 分类对应的页面地址，下钻时按原样交给 `/v6/page/dataList`。
-    public var link = ""
-
-    public init(json: JSON) {
-        self.id = json.id.exists ? json.id.identifier : json.title.string
-        self.title = json.title.string
-        self.logo = json.logo.string.isEmpty ? json.pic.string : json.logo.string
-        self.productNum = json.product_num.int
-        self.link = json.url.string
-    }
-}
-
 // MARK: - 电商与直播
 
 /// 酷品 / 京东联盟商品。

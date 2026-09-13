@@ -51,13 +51,6 @@ struct RootView: View {
                     store.selection = .notifications
                 }
 
-                Button {
-                    store.selection = .me
-                } label: {
-                    AvatarView(url: store.avatar, size: 22)
-                }
-                .buttonStyle(.plain)
-                .help(store.isLoggedIn ? store.username : "登录")
             }
         }
         .searchable(text: $store.searchText, placement: .toolbar, prompt: "搜索动态、用户、话题")
@@ -109,11 +102,71 @@ struct RootView: View {
     /// 侧边栏用 AppKit 的 source list 承载：选中态是系统的半透明覆盖层，
     /// 和访达 / App Store 一致（SwiftUI 的 List 只能画强调色实心高亮）。
     private var sidebar: some View {
-        SourceListSidebar(sections: sidebarSections, selection: store.selection) { item in
-            store.selection = item
+        VStack(spacing: 0) {
+            SourceListSidebar(sections: sidebarSections, selection: store.selection) { item in
+                store.selection = item
+            }
+            Divider()
+            accountRow
         }
         .navigationSplitViewColumnWidth(min: 186, ideal: 202, max: 250)
     }
+
+    /// 侧栏底部的账号入口，和 App Store 一样固定在列表下方：头像 + 昵称 / ID。
+    private var accountRow: some View {
+        Button {
+            if store.isLoggedIn {
+                store.selection = .me
+            } else {
+                store.loginSheetPresented = true
+            }
+        } label: {
+            HStack(spacing: 8) {
+                if store.isLoggedIn {
+                    AvatarView(url: store.avatar, size: 22)
+                } else {
+                    Image(systemName: "person.crop.circle")
+                        .font(.system(size: 20))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 22, height: 22)
+                }
+
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(accountTitle)
+                        .font(.system(size: 12.5, weight: .medium))
+                        .lineLimit(1)
+                    Text(accountSubtitle)
+                        .font(.system(size: 10.5))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 6)
+            .padding(.vertical, 4)
+            .contentShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+            .background {
+                if store.selection == .me {
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .fill(Color.primary.opacity(0.09))
+                }
+            }
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, 6)
+        .padding(.vertical, 6)
+        .help(store.isLoggedIn ? "\(store.username)（ID: \(store.uid)）" : "登录酷安账号")
+    }
+
+    private var accountTitle: String {
+        guard store.isLoggedIn else { return "登录酷安账号" }
+        return store.username.isEmpty ? "酷安用户" : store.username
+    }
+
+    private var accountSubtitle: String {
+        store.isLoggedIn ? "ID: \(store.uid)" : "未登录"
+    }
+
 
     private var sidebarSections: [SourceListSidebar<NavItem>.Section] {
         var sections: [SourceListSidebar<NavItem>.Section] = [
@@ -138,7 +191,6 @@ struct RootView: View {
         }
 
         sections.append(.init(id: "mine", title: "我的", rows: [
-            entry(.me, icon: "person.crop.circle"),
             entry(.notifications, icon: "bell", badge: store.badge.total),
             entry(.favorites, icon: "star"),
             entry(.history, icon: "clock.arrow.circlepath"),
@@ -303,13 +355,10 @@ struct RootView: View {
     /// 侧栏 / 首页标签的内容列，按 `/v6/main/init` 给的页面地址决定用哪种列表。
     @ViewBuilder
     private func tabContent(pageName: String, title: String) -> some View {
-        let route = store.route(forPage: pageName)
-        if route == .digitalLibrary {
-            DigitalLibraryView().navigationTitle(title)
-        } else {
-            feedColumn(title: title, route: route, requiresLogin: pageName == "V9_HOME_TAB_FOLLOW")
-                .id(pageName)
-        }
+        feedColumn(title: title,
+                   route: store.route(forPage: pageName),
+                   requiresLogin: pageName == "V9_HOME_TAB_FOLLOW")
+            .id(pageName)
     }
 
     /// Feed based destinations share one model instance so that switching columns
@@ -324,9 +373,8 @@ struct RootView: View {
         }
         .navigationTitle(title)
         .task(id: route) {
-            guard let source = route.source else { return }
-            if contentModel?.source != source {
-                contentModel = FeedListModel(source: source)
+            if contentModel?.source != route.source {
+                contentModel = FeedListModel(source: route.source)
             }
         }
     }

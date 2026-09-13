@@ -58,16 +58,10 @@ public enum API {
         return try rows(from: json.data.array)
     }
 
-    // MARK: - 数码库
+    // MARK: - 商品
 
-    /// 数码库分类列表（`/v6/product/categoryList`）。
-    public static func productCategories() async throws -> [ProductCategory] {
-        let json = try await client.get("/v6/product/categoryList", ["page": "1"])
-        return json.data.array.map { ProductCategory(json: $0) }
-    }
-
-    /// 某个数码分类下的商品流，地址取自分类行自己的 `url`。
-    public static func productCategory(pageLink: String, page: Int) async throws -> [HomeFeedRow] {
+    /// 商品流，地址取自商品 / 分类行自己的 `url`。
+    public static func productFeed(pageLink: String, page: Int) async throws -> [HomeFeedRow] {
         let items = try await client.dataList(url: pageTarget(from: pageLink), page: page)
         return try rows(from: items)
     }

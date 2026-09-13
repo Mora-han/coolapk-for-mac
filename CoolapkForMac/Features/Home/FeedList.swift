@@ -14,7 +14,7 @@ final class FeedListModel {
         /// 看看号（`/v6/user/dyhSubscribe`），配置里给的地址不是信息流页名。
         case dyhSubscribe
         case page(String, String?)
-        /// 直接以某个地址请求 `/v6/page/dataList`（数码库分类等）。
+        /// 直接以某个地址请求 `/v6/page/dataList`（商品流等）。
         case dataList(String)
         case user(String)
         case topic(String)
@@ -102,7 +102,7 @@ final class FeedListModel {
             case let .page(name, type):
                 return try await API.pageFeed(pageName: name, page: page, type: type)
             case let .dataList(target):
-                return try await API.productCategory(pageLink: target, page: page)
+                return try await API.productFeed(pageLink: target, page: page)
             case let .user(uid):
                 return try await API.userFeeds(uid: uid, page: page)
             case let .topic(tag):
