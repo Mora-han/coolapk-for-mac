@@ -39,7 +39,7 @@ enum DebugHooks {
         let requested = ProcessInfo.processInfo.environment["COOLAPK_LOG_FILE"]
         let fallback = NSTemporaryDirectory() + "coolapk-debug.log"
         let path = (requested?.isEmpty == false) ? requested! : fallback
-        append(text, to: path) || append(text, to: fallback)
+        if !append(text, to: path) { _ = append(text, to: fallback) }
     }
 
     private static func append(_ text: String, to path: String) -> Bool {
