@@ -16,7 +16,7 @@
 
 ## 下载
 
-预编译版本在 [Releases](https://github.com/Mora-han/coolapk-for-mac/releases)：当前 0.18.0
+预编译版本在 [Releases](https://github.com/Mora-han/coolapk-for-mac/releases)：当前 0.18.1
 （macOS 26.0+，arm64 + x86_64 通用二进制）。包是本机 ad-hoc 签名、没有 Apple 公证，首次打开
 需要右键 →「打开」，或先执行 `xattr -dr com.apple.quarantine /Applications/Coolapk.app`。
 
@@ -43,7 +43,8 @@ open CoolapkForMac.xcodeproj
 Packages/
   CoolapkKit/          酷安接口工具包（不依赖任何 UI，可直接给别的项目用）
     CoolapkClient      签名请求、token 缓存、失败重试、multipart 上传
-    CoolapkToken       X-App-Token v2 生成（Android UA 要求）
+    CoolapkToken       X-App-Token v3 生成（Android UA + 内置密码查找表）
+    TokenTableV3       v3 token 用的密码查找表（取自官方客户端，静态数据）
     Bcrypt / BlowfishTables   纯 Swift bcrypt 实现，无第三方依赖
     JSON               容错 JSON 包装
     API                全部接口封装

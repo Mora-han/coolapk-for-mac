@@ -144,10 +144,11 @@ public actor CoolapkClient {
         request.setValue(CoolapkToken.apiVersion, forHTTPHeaderField: "X-Api-Version")
         request.setValue(appToken, forHTTPHeaderField: "X-App-Token")
         request.setValue(deviceCode, forHTTPHeaderField: "X-App-Device")
-        request.setValue("33", forHTTPHeaderField: "X-Sdk-Int")
+        request.setValue(CoolapkToken.sdkInt, forHTTPHeaderField: "X-Sdk-Int")
         request.setValue("zh-CN", forHTTPHeaderField: "X-Sdk-Locale")
         request.setValue("universal", forHTTPHeaderField: "X-App-Mode")
         request.setValue("coolapk", forHTTPHeaderField: "X-App-Channel")
+        request.setValue("0", forHTTPHeaderField: "X-Dark-Mode")
         request.setValue(CoolapkToken.userAgent, forHTTPHeaderField: "User-Agent")
         request.setValue("zh-CN,zh;q=0.9", forHTTPHeaderField: "Accept-Language")
         if !loginCookie.isEmpty { request.setValue(loginCookie, forHTTPHeaderField: "Cookie") }
@@ -158,8 +159,13 @@ public actor CoolapkClient {
 
         do {
             let (data, response) = try await session.data(for: request)
-            if let http = response as? HTTPURLResponse, http.statusCode == 567 {
-                throw APIError.blocked
+            if let http = response as? HTTPURLResponse {
+                if http.statusCode == 567 { throw APIError.blocked }
+                // 网关拦截、被 WAF 挡下这类响应是空的 HTML，直接说清楚状态码，
+                // 别再让它走到 JSON 解析里报成「数据解析失败」。
+                if http.statusCode != 200, (try? JSON(data: data)) == nil {
+                    throw APIError.network("服务端返回异常（HTTP \(http.statusCode)）")
+                }
             }
             return data
         } catch let error as APIError {
