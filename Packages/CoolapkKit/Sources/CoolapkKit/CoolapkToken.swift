@@ -60,7 +60,8 @@ public enum CoolapkToken {
         return "\(hashed)-\(deviceCode)\(String(timestamp, radix: 16))"
     }
 
-    /// 上一代 token（schema v2）。服务端已经不认，只留作对照与回退。
+    /// 上一代 token（schema v2）。服务端目前仍然接受（跟其他头一起构成「客户端身份」），
+    /// 但 v2 不带版本号，官方 16.x 客户端已经改用 v3，这里留作对照与回退。
     public static func appTokenV2(deviceCode: String, timestamp: Int) -> String? {
         let time = String(timestamp)
         let token = "token://\(packageName)/dcf01e569c1e3db93a3d0fcf191a622c?"
@@ -83,8 +84,11 @@ public enum CoolapkToken {
         return "v2" + base64(hash, padding: false)
     }
 
-    /// 当前 token（schema v3）。bcrypt 的密码由内置查找表按时间戳取片段算出，
-    /// 盐里带着同一个时间戳，服务端据此重算一遍来校验。
+    /// 当前 token（schema v3，官方 16.x 客户端用的这一代）。bcrypt 的密码由内置查找表按
+    /// 时间戳取片段算出，盐里带着同一个时间戳，服务端据此重算一遍来校验。
+    ///
+    /// 查找表的分片和 `versionCode` 绑定：用内置这张表（2604201）生成的 token，必须配
+    /// `X-App-Code: 2604201` 发出去，换成别的版本号服务端会算成另一片而验不过。
     ///
     /// 盐必须是 22 个 bcrypt 字母表内的字符，且最后一位落在规范位上，否则服务端
     /// 解出来的盐会对不上；碰上这种时间戳就往后挪一秒重试。
