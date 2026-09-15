@@ -180,6 +180,8 @@ struct FeedListView: View {
     var emptyMessage = "这里还没有内容"
 
     @Environment(AppStore.self) private var store
+    /// 调试入口只触发一次，避免每次列表刷新都把详情重新选中。
+    @State private var openedDebugDetail = false
 
     var body: some View {
         GeometryReader { proxy in
@@ -217,7 +219,10 @@ struct FeedListView: View {
         }
         // 按模型实例触发加载：切换 Tab 时视图不会重建，但模型会被替换，
         // 只比较 source 会漏掉「新实例还没加载」的情况。
-        .task(id: ObjectIdentifier(model)) { if model.isEmpty { await model.load() } }
+        .task(id: ObjectIdentifier(model)) {
+            if model.isEmpty { await model.load() }
+            openDebugDetailIfNeeded()
+        }
         .task(id: store.reloadToken) {
             guard !model.isEmpty else { return }
             await model.load(reset: true)
@@ -231,6 +236,14 @@ struct FeedListView: View {
                 .padding(.top, 8)
             }
         }
+    }
+
+    /// `COOLAPK_DETAIL_ROW=n`：列表就绪后选中第 n 行，等同于手动点一下卡片。
+    private func openDebugDetailIfNeeded() {
+        guard !openedDebugDetail, let index = DebugHooks.detailRow else { return }
+        guard index < model.rows.count, case let .feed(item) = model.rows[index] else { return }
+        openedDebugDetail = true
+        store.selectedFeed = item
     }
 
     @ViewBuilder

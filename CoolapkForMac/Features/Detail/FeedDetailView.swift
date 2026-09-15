@@ -428,8 +428,18 @@ struct FeedDetailView: View {
     }
 
     private func loadDetail() async {
-        if let detail = try? await API.feedDetail(id: initial.id) {
+        do {
+            let detail = try await API.feedDetail(id: initial.id)
+            // 服务端偶尔回一个空对象（动态被删、`data` 为空），别拿它盖掉列表里的内容。
+            guard !detail.id.isEmpty else {
+                DebugHooks.log("detail \(initial.id) 返回空对象，继续用列表里的内容渲染")
+                return
+            }
             item = detail
+        } catch {
+            // 详情接口现在可能被风控拦下（`err_request_captcha_v2`）：信息流里那条动态
+            // 本来就带着完整正文、图片和互动数，继续用它渲染，不要清空已经显示出来的内容。
+            DebugHooks.log("detail \(initial.id) 获取失败，继续用列表里的内容渲染：\(error.localizedDescription)")
         }
     }
 

@@ -203,6 +203,15 @@ public actor CoolapkClient {
                 }
                 throw APIError.message(text)
             }
+            // 有些错误响应没有 `status`，只给 `code` —— 比如详情接口的风控
+            // `{"code":403,"message":"当前访问需要验证码"}`。这类响应同样没有 `data`，
+            // 当成成功就会拿到一个空对象，把已经渲染好的页面刷成空白。
+            let code = json.code.int
+            if code != 0, !json.data.exists {
+                let text = json.message.string
+                if text.contains("登录") { throw APIError.unauthorized }
+                throw APIError.message(text.isEmpty ? "请求被服务端拒绝（code \(code)）" : text)
+            }
             if status == 1005, attempt == 0 {
                 attempt += 1
                 invalidateToken()

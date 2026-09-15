@@ -38,6 +38,13 @@ enum DebugHooks {
         return (value?.isEmpty == false) ? value : nil
     }
 
+    /// `COOLAPK_DETAIL_ROW=3`：列表就绪后选中第 3 行（从 0 开始），等同于手动点一下卡片，
+    /// 用来回归「详情一闪就没了」这类只在点击路径上出现的问题。
+    static var detailRow: Int? {
+        guard let raw = ProcessInfo.processInfo.environment["COOLAPK_DETAIL_ROW"], let value = Int(raw) else { return nil }
+        return value >= 0 ? value : nil
+    }
+
     static let isVerbose = ProcessInfo.processInfo.environment["COOLAPK_DEBUG"] == "1"
 
     /// 打开 `COOLAPK_DEBUG=1` 时把请求与错误打到标准错误，便于命令行排查；

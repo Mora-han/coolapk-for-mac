@@ -484,8 +484,15 @@ final class AppStore {
     }
 
     func openFeed(id: String) async {
-        if let item = try? await API.feedDetail(id: id) {
+        do {
+            let item = try await API.feedDetail(id: id)
+            guard !item.id.isEmpty else {
+                present("这条动态暂时打不开")
+                return
+            }
             selectedFeed = item
+        } catch {
+            present((error as? APIError)?.errorDescription ?? "动态加载失败")
         }
     }
 

@@ -16,7 +16,7 @@
 
 ## 下载
 
-预编译版本在 [Releases](https://github.com/Mora-han/coolapk-for-mac/releases)：当前 0.18.1
+预编译版本在 [Releases](https://github.com/Mora-han/coolapk-for-mac/releases)：当前 0.18.2
 （macOS 26.0+，arm64 + x86_64 通用二进制）。包是本机 ad-hoc 签名、没有 Apple 公证，首次打开
 需要右键 →「打开」，或先执行 `xattr -dr com.apple.quarantine /Applications/Coolapk.app`。
 
@@ -124,6 +124,7 @@ COOLAPK_TAB=V9_HOME_TAB_HEADLINE            # 首页切到指定标签
 COOLAPK_NOTIFY=likes                        # 消息页切到指定分类
 COOLAPK_FOLLOW=users                        # 关注页切到某个来源（all/users/more/topic:iOS27）
 COOLAPK_SCROLL=3                            # 列表加载后滚动到第 N 行
+COOLAPK_DETAIL_ROW=3                        # 列表就绪后选中第 N 行（等同于点一下卡片）
 COOLAPK_DEBUG=1                             # 打印请求日志
 ```
 
